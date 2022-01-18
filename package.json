@@ -1,0 +1,42 @@
+{
+  "name": "@algofi-amm/v0",
+  "version": "1.2.8",
+  "description": "The official JavaScript SDK for the Algofi AMM",
+  "main": "dist/index.js",
+  "files": [
+    "dist/"
+  ],
+  "module": "dist/algofi-amm.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/com/algofiorg/algofi-amm-js-sdk.git"
+  },
+  "keywords": [
+    "algofi",
+    "algorand",
+    "amm"
+  ],
+  "scripts": {
+    "build": "tsdx build",
+    "start": "tsdx watch",
+    "test": "tsdx test",
+    "prepublishOnly": "tsdx build"
+  },
+  "dependencies": {
+    "algosdk": "github:algorand/js-algorand-sdk"
+  },
+  "devDependencies": {
+    "@types/jest": "^24.0.25",
+    "tsdx": "^0.14.1"
+  },
+  "engines": {
+    "node": ">=10"
+  },
+  "prettier": {
+    "printWidth": 120,
+    "semi": false,
+    "singleQuote": false
+  },
+  "author": "Blockchain Technologies, Inc.",
+  "license": "MIT"
+}
