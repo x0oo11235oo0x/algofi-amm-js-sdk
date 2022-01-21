@@ -1,19 +1,17 @@
 // imports
 import algosdk, { Algodv2 } from "algosdk"
-import Pool, { PoolType, PoolStatus } from "./pool"
-
-// enums
-
-export enum Network {
-  MAINNET = 0,
-  TESTNET = 1
-}
+import {
+  Network,
+  PoolType,
+  PoolStatus
+} from "./config"
+import Pool from "./pool"
 
 // interface
 
 export default class AlgofiAMMClient {
-  public network : Network;
   public algod : Algodv2
+  public network : Network;
   
   constructor(
     algod : Algodv2,
@@ -25,7 +23,7 @@ export default class AlgofiAMMClient {
   
   async getPool(poolType : PoolType,
                 assetA : number,
-                assetB : number) {
+                assetB : number) : Promise<Pool> {
     if (assetA == assetB) {
       throw new Error("Invalid assets. must be different")
     }

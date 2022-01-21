@@ -1,31 +1,74 @@
-// MANAGER APPLICATION ID
-export const MAINNET_MANAGER_APPLICATION_ID = 12345678
-export const TESTNET_MANAGER_APPLICATION_ID = 12345678
+// ENUMS
 
-// prototype pools to copy approval program from for create transaction
-export const MAINNET_PROTOTYPE_30BP_CONSTANT_PRODUCT_APPLICATION_ID = 87654321
-export const MAINNET_PROTOTYPE_100BP_CONSTANT_PRODUCT_APPLICATION_ID = 7654321
-
-export const TESTNET_PROTOTYPE_30BP_CONSTANT_PRODUCT_APPLICATION_ID = 87654321
-export const TESTNET_PROTOTYPE_100BP_CONSTANT_PRODUCT_APPLICATION_ID = 7654321
-
-// stable swap pool applicaton ids
-export const MAINNET_STBL_ASSET_ID = 3
-export const MAINNET_USDC_ASSET_ID = 2
-export const MAINNET_USDT_ASSET_ID = 1
-export const MAINNET_STABLE_SWAP_POOL_APPLICATION_IDS = {
-    MAINNET_USDC_ASSET_ID : { MAINNET_STBL_ASSET_ID : 12345 }
+export enum Network {
+  MAINNET = 0,
+  TESTNET = 1
 }
 
-export const TESTNET_STBL_ASSET_ID = 3
-export const TESTNET_USDC_ASSET_ID = 2
-export const TESTNET_USDT_ASSET_ID = 1
-export const TESTNET_STABLE_SWAP_POOL_APPLICATION_IDS = {
-    TESTNET_USDC_ASSET_ID : { TESTNET_STBL_ASSET_ID : 12345 }
+export enum PoolType {
+  CONSTANT_PRODUCT_30BP_FEE = 0,
+  CONSTANT_PRODUCT_100BP_FEE = 1,
+}
+
+export enum PoolStatus {
+  UNINITIALIZED = 0,
+  ACTIVE = 1
+}
+
+// LOOKUP FUNCTIONS
+
+type EnumDictionary<T extends string | symbol | number, U> = {
+    [K in T]: U;
+};
+
+export function getValidatorIndex(network : Network, poolType : PoolType) : number {
+  //const validatorIndexes: EnumDictionary<Network, EnumDictionary<PoolType, number>> = {
+  //  [Network.MAINNET] : {
+  //    [PoolType.CONSTANT_PRODUCT_30BP_FEE] : 0,
+  //    [PoolType.CONSTANT_PRODUCT_100BP_FEE] : 1
+  //  },
+  //  [Network.TESTNET] : {
+  //    [PoolType.CONSTANT_PRODUCT_30BP_FEE] : 0,
+  //    [PoolType.CONSTANT_PRODUCT_100BP_FEE] : 1
+  //  }
+  //}
+  //return validatorIndexes[network][poolType]
+  if (poolType === PoolType.CONSTANT_PRODUCT_30BP_FEE) {
+    return 0
+  } else {
+    return 1
+  }
+}
+
+export function getPrototypeApplicationId(network : Network, poolType : PoolType) : number {
+  //const prototypeApplicationIds: EnumDictionary<Network, EnumDictionary<PoolType, number>> = {
+  //  [Network.MAINNET] : {
+  //    [PoolType.CONSTANT_PRODUCT_30BP_FEE] : 87654321,
+  //    [PoolType.CONSTANT_PRODUCT_100BP_FEE] : 7654321
+  //  },
+  //  [Network.TESTNET] : {
+  //    [PoolType.CONSTANT_PRODUCT_30BP_FEE] : 66008848,
+  //    [PoolType.CONSTANT_PRODUCT_100BP_FEE] : 7654321
+  //  }
+  //}
+  //return prototypeApplicationIds[network][poolType]
+  if (poolType === PoolType.CONSTANT_PRODUCT_30BP_FEE) {
+    return 66008848
+  } else {
+    return 7654321
+  }
 }
 
 
-// contract strings
+export function getManagerApplicationId(network : Network) : number {
+  const managerApplicationIds: EnumDictionary<Network, number> = {
+    [Network.MAINNET] : 12345678,
+    [Network.TESTNET] : 66008735
+  }
+  return managerApplicationIds[network]
+}
+
+// STRING CONSTANTS
 export const MANAGER_STRINGS = {
     flash_loan_fee : "flf",
     max_flash_loan_ratio : "mflr",

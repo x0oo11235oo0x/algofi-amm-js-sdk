@@ -1,12 +1,19 @@
 // imports
-import algosdk, { Algodv2 } from "algosdk"
-import AlgofiAMMClient, { Network } from "./algofiAMMClient"
+import {
+  Network,
+  PoolType,
+  PoolStatus
+} from "./config"
+import AlgofiAMMClient from "./algofiAMMClient"
+import Pool from "./pool"
 import { waitForConfirmation } from "./transactionUtilities"
-import { PoolType } from "./pool"
+
 // exports
 export {
-  AlgofiAMMClient,
   Network,
-  waitForConfirmation,
-  PoolType
+  PoolType,
+  PoolStatus,
+  AlgofiAMMClient,
+  Pool,
+  waitForConfirmation
 }

@@ -1,9 +1,10 @@
 // external imports
-import algosdk, { Algodv2, LogicSigAccount, Transaction, getApplicationAddress, encodeUint64 } from "algosdk"
+import algosdk, { Algodv2, LogicSigAccount, Transaction, getApplicationAddress, encodeUint64, OnApplicationComplete } from "algosdk"
 
 // internal imports
 import {
   getApplicationGlobalState,
+  getApplicationPrograms,
   getApplicationLocalState
 } from "./stateUtilities"
 import {
@@ -15,58 +16,21 @@ import {
   generateLogicSig
 } from "./logicSigGenerator"
 import {
-  MAINNET_MANAGER_APPLICATION_ID,
-  TESTNET_MANAGER_APPLICATION_ID,
-  MAINNET_PROTOTYPE_30BP_CONSTANT_PRODUCT_APPLICATION_ID,
-  MAINNET_PROTOTYPE_100BP_CONSTANT_PRODUCT_APPLICATION_ID,
-  TESTNET_PROTOTYPE_30BP_CONSTANT_PRODUCT_APPLICATION_ID,
-  TESTNET_PROTOTYPE_100BP_CONSTANT_PRODUCT_APPLICATION_ID,
+  Network,
+  PoolType,
+  PoolStatus,
+  getValidatorIndex,
+  getPrototypeApplicationId,
+  getManagerApplicationId,
   POOL_STRINGS,
   MANAGER_STRINGS
 } from "./config"
-import {
-  Network
-} from "./algofiAMMClient"
 
-// enums
-export enum PoolStatus {
-  UNINITIALIZED = 0,
-  ACTIVE = 1
-}
-
-export enum PoolType {
-  CONSTANT_PRODUCT_30BP_FEE = 0,
-  CONSTANT_PRODUCT_100BP_FEE = 1,
-}
-
-function getValidatorIndex(network : Network, poolType : PoolType) {
-  const validatorIndexes = {
-    [Network.MAINNET] : {
-      [PoolType.CONSTANT_PRODUCT_30BP_FEE] : 0,
-      [PoolType.CONSTANT_PRODUCT_100BP_FEE] : 1
-    },
-    [Network.TESTNET] : {
-      [PoolType.CONSTANT_PRODUCT_30BP_FEE] : 0,
-      [PoolType.CONSTANT_PRODUCT_100BP_FEE] : 1
-    }
-  }
-  return validatorIndexes[network][poolType]
-}
-
-function getManagerApplicationId(network : Network) {
-  if (network = Network.MAINNET) {
-    return MAINNET_MANAGER_APPLICATION_ID
-  } else {
-    return TESTNET_MANAGER_APPLICATION_ID
-  }
-}
-
-function getStableSwapPoolApplicationId(network, asset1Id, asset2Id) {
-  
-}
+// interface
 
 export default class Pool {
   public algod : Algodv2;
+  public network : Network;
   public poolType : PoolType;
   public managerApplicationId : number;
   public asset1Id : number;
@@ -91,6 +55,7 @@ export default class Pool {
       throw new Error("Invalid asset ordering. Assert 1 must be less than Asset 2");
     }
     this.algod = algod
+    this.network = network
     this.poolType = poolType
     this.asset1Id = asset1Id
     this.asset2Id = asset2Id
@@ -127,6 +92,76 @@ export default class Pool {
     this.lpAssetId = poolState[POOL_STRINGS.lp_id]
     
     return this.poolStatus
+  }
+  
+  async getCreatePoolTxns(sender : string):Promise<Transaction[]> {
+    if (this.poolStatus == PoolStatus.ACTIVE) {
+      throw new Error("Pool already active cannot generate create pool txn")
+    }
+    const params = await getParams(this.algod)
+
+    let prototypeApplicationID = getPrototypeApplicationId(this.network, this.poolType)
+    let prototypePrograms = await getApplicationPrograms(this.algod, prototypeApplicationID)
+  
+    const txn0 = algosdk.makeApplicationCreateTxnFromObject({
+      from: sender,
+      suggestedParams: params,
+      approvalProgram: prototypePrograms[0],
+      clearProgram: prototypePrograms[1],
+      numLocalInts: 0,
+      numLocalByteSlices: 0,
+      numGlobalInts: 60,
+      numGlobalByteSlices: 4,
+      onComplete: OnApplicationComplete.NoOpOC,
+      accounts: undefined,
+      foreignApps: undefined,
+      foreignAssets: undefined,
+      rekeyTo: undefined,
+    })
+    
+    return [txn0]
+  }
+  
+  async getInitializePoolTxns(sender : string, poolApplicationID : number):Promise<Transaction[]> {
+    if (this.poolStatus == PoolStatus.ACTIVE) {
+      throw new Error("Pool already active cannot generate initialize pool txn")
+    }
+    const params = await getParams(this.algod)
+    const enc = new TextEncoder()
+
+    // fund manager
+    const txn0 = getPaymentTxn(params, sender, getApplicationAddress(this.managerApplicationId), 1, 500000)
+  
+    // fund logic sig
+    const txn1 = getPaymentTxn(params, sender, this.logicSig.address(), 1, 835000)
+  
+    // opt logic sig into manager
+    params.fee = 5000
+    const txn2 = algosdk.makeApplicationOptInTxnFromObject({
+      from: this.logicSig.address(),
+      appIndex: this.managerApplicationId,
+      suggestedParams: params,
+      appArgs: [encodeUint64(this.asset1Id), encodeUint64(this.asset2Id), encodeUint64(this.validatorIndex)],
+      accounts: undefined,
+      foreignApps: [poolApplicationID],
+      foreignAssets: undefined,
+      rekeyTo: undefined,
+    })
+    
+    // pool
+    params.fee = 1000
+    const txn3 = algosdk.makeApplicationNoOpTxnFromObject({
+      from: sender,
+      appIndex: poolApplicationID,
+      appArgs: [enc.encode(POOL_STRINGS.initialize_pool)],
+      suggestedParams: params,
+      accounts: undefined,
+      foreignApps: undefined,
+      foreignAssets: this.asset1Id != 1 ? [this.asset1Id, this.asset2Id] : [this.asset2Id],
+      rekeyTo: undefined,
+    })
+    
+    return [txn0, txn1, txn2, txn3]
   }
   
   async getPoolTxns(sender : string,
