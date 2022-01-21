@@ -9,7 +9,6 @@ import {
 } from "./stateUtilities"
 import {
   getParams,
-  waitForConfirmation,
   getPaymentTxn
 } from "./transactionUtilities"
 import {
@@ -20,7 +19,8 @@ import {
   PoolType,
   PoolStatus,
   getValidatorIndex,
-  getPrototypeApplicationId,
+  getApprovalProgramByType,
+  getClearStateProgram,
   getManagerApplicationId,
   POOL_STRINGS,
   MANAGER_STRINGS
@@ -94,32 +94,36 @@ export default class Pool {
     return this.poolStatus
   }
   
-  async getCreatePoolTxns(sender : string):Promise<Transaction[]> {
+  async getCreatePoolTxn(sender : string):Promise<Transaction> {
     if (this.poolStatus == PoolStatus.ACTIVE) {
       throw new Error("Pool already active cannot generate create pool txn")
     }
     const params = await getParams(this.algod)
 
-    let prototypeApplicationID = getPrototypeApplicationId(this.network, this.poolType)
-    let prototypePrograms = await getApplicationPrograms(this.algod, prototypeApplicationID)
+    let approval_program = getApprovalProgramByType(this.poolType)
+    let clear_state_program = await getClearStateProgram()
+    console.log(approval_program.length)
+    console.log(clear_state_program.length)
   
     const txn0 = algosdk.makeApplicationCreateTxnFromObject({
       from: sender,
       suggestedParams: params,
-      approvalProgram: prototypePrograms[0],
-      clearProgram: prototypePrograms[1],
+      approvalProgram: approval_program,
+      clearProgram: clear_state_program,
       numLocalInts: 0,
       numLocalByteSlices: 0,
       numGlobalInts: 60,
       numGlobalByteSlices: 4,
+      extraPages: 3,
       onComplete: OnApplicationComplete.NoOpOC,
+      appArgs: [encodeUint64(this.asset1Id), encodeUint64(this.asset2Id)],
       accounts: undefined,
-      foreignApps: undefined,
+      foreignApps: [this.managerApplicationId],
       foreignAssets: undefined,
       rekeyTo: undefined,
     })
     
-    return [txn0]
+    return txn0
   }
   
   async getInitializePoolTxns(sender : string, poolApplicationID : number):Promise<Transaction[]> {
@@ -136,27 +140,27 @@ export default class Pool {
     const txn1 = getPaymentTxn(params, sender, this.logicSig.address(), 1, 835000)
   
     // opt logic sig into manager
-    params.fee = 5000
+    params.fee = 2000
     const txn2 = algosdk.makeApplicationOptInTxnFromObject({
       from: this.logicSig.address(),
       appIndex: this.managerApplicationId,
       suggestedParams: params,
       appArgs: [encodeUint64(this.asset1Id), encodeUint64(this.asset2Id), encodeUint64(this.validatorIndex)],
-      accounts: undefined,
+      accounts: [getApplicationAddress(poolApplicationID)],
       foreignApps: [poolApplicationID],
       foreignAssets: undefined,
       rekeyTo: undefined,
     })
     
     // pool
-    params.fee = 1000
+    params.fee = 4000
     const txn3 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: poolApplicationID,
       appArgs: [enc.encode(POOL_STRINGS.initialize_pool)],
       suggestedParams: params,
       accounts: undefined,
-      foreignApps: undefined,
+      foreignApps: [this.managerApplicationId],
       foreignAssets: this.asset1Id != 1 ? [this.asset1Id, this.asset2Id] : [this.asset2Id],
       rekeyTo: undefined,
     })

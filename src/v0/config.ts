@@ -1,3 +1,9 @@
+import {
+  APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT,
+  APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT,
+  CLEAR_STATE_PROGRAM
+} from "./approvalPrograms"
+
 // ENUMS
 
 export enum Network {
@@ -40,25 +46,17 @@ export function getValidatorIndex(network : Network, poolType : PoolType) : numb
   }
 }
 
-export function getPrototypeApplicationId(network : Network, poolType : PoolType) : number {
-  //const prototypeApplicationIds: EnumDictionary<Network, EnumDictionary<PoolType, number>> = {
-  //  [Network.MAINNET] : {
-  //    [PoolType.CONSTANT_PRODUCT_30BP_FEE] : 87654321,
-  //    [PoolType.CONSTANT_PRODUCT_100BP_FEE] : 7654321
-  //  },
-  //  [Network.TESTNET] : {
-  //    [PoolType.CONSTANT_PRODUCT_30BP_FEE] : 66008848,
-  //    [PoolType.CONSTANT_PRODUCT_100BP_FEE] : 7654321
-  //  }
-  //}
-  //return prototypeApplicationIds[network][poolType]
+export function getApprovalProgramByType(poolType : PoolType) : Uint8Array {
   if (poolType === PoolType.CONSTANT_PRODUCT_30BP_FEE) {
-    return 66008848
+    return APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT
   } else {
-    return 7654321
+    return APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT
   }
 }
 
+export function getClearStateProgram() : Uint8Array {
+  return CLEAR_STATE_PROGRAM
+}
 
 export function getManagerApplicationId(network : Network) : number {
   const managerApplicationIds: EnumDictionary<Network, number> = {

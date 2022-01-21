@@ -15,29 +15,6 @@ export async function getParams(algodClient: Algodv2): Promise<SuggestedParams> 
 }
 
 /**
- * Helper function to wait for a transaction to be completed
- *
- * @param   {Algodv2}   algofClient
- * @param   {string}    txid
- * 
- * @return  {none}
- */
-export async function waitForConfirmation(algodClient:Algodv2, txId:string):Promise<void> {
-  const response = await algodClient.status().do()
-  let lastround = response["last-round"]
-  while (true) {
-    const pendingInfo = await algodClient.pendingTransactionInformation(txId).do()
-    if (pendingInfo["confirmed-round"] !== null && pendingInfo["confirmed-round"] > 0) {
-      //Got the completed Transaction
-      console.log("Transaction " + txId + " confirmed in round " + pendingInfo["confirmed-round"])
-      break
-    }
-    lastround++
-    await algodClient.statusAfterBlock(lastround).do()
-  }
-}
-
-/**
  * Function to generate payment or asset transfer transactions
  *
  * @param   {SuggestedParams}   params

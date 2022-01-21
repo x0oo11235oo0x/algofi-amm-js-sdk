@@ -6,7 +6,6 @@ import {
 } from "./config"
 import AlgofiAMMClient from "./algofiAMMClient"
 import Pool from "./pool"
-import { waitForConfirmation } from "./transactionUtilities"
 
 // exports
 export {
@@ -15,5 +14,4 @@ export {
   PoolStatus,
   AlgofiAMMClient,
   Pool,
-  waitForConfirmation
 }
