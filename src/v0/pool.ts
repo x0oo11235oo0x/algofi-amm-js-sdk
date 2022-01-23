@@ -2,18 +2,10 @@
 import algosdk, { Algodv2, LogicSigAccount, Transaction, getApplicationAddress, encodeUint64, OnApplicationComplete } from "algosdk"
 
 // internal imports
-import {
-  getApplicationGlobalState,
-  getApplicationLocalState,
-  getAccountBalances
-} from "./stateUtilities"
-import {
-  getParams,
-  getPaymentTxn
-} from "./transactionUtilities"
-import {
-  generateLogicSig
-} from "./logicSigGenerator"
+import { getApplicationGlobalState, getApplicationLocalState, getAccountBalances } from "./stateUtilities"
+import { getParams, getPaymentTxn } from "./transactionUtilities"
+import { generateLogicSig } from "./logicSigGenerator"
+import BalanceDelta from "./balanceDelta"
 import {
   Network,
   PoolType,
@@ -43,6 +35,7 @@ export default class Pool {
   public lpAssetId : number;
   public asset1Balance : number;
   public asset2Balance : number;
+  public lpCirculation : number;
   
   constructor(
     algod : Algodv2,
@@ -90,10 +83,13 @@ export default class Pool {
     this.asset1Balance = poolState[POOL_STRINGS.balance_1]
     this.asset2Balance = poolState[POOL_STRINGS.balance_2]
     this.lpAssetId = poolState[POOL_STRINGS.lp_id]
+    this.lpCirculation = poolState[POOL_STRINGS.lp_circulation]
     
     return this.poolStatus
   }
   
+  // TXN GENERATORS
+
   async getCreatePoolTxn(sender : string):Promise<Transaction> {
     if (this.poolStatus == PoolStatus.ACTIVE) {
       throw new Error("Pool already active cannot generate create pool txn")
@@ -146,7 +142,7 @@ export default class Pool {
       appArgs: [encodeUint64(this.asset1Id), encodeUint64(this.asset2Id), encodeUint64(this.validatorIndex)],
       accounts: [getApplicationAddress(poolApplicationID)],
       foreignApps: [poolApplicationID],
-      foreignAssets: [this.lpAssetId],
+      foreignAssets: undefined,
       rekeyTo: undefined,
     })
     
@@ -327,5 +323,35 @@ export default class Pool {
   
     return [txn0, txn1, txn2]
   }
+
+  // QUOTES
+
+  // pool quote
+  async getPoolQuote(assetId : number,
+                     assetAmount : number) {
+    if (this.lpCirculation === 0) {
+      throw new Error("Error: pool is empty")
+    }
+    
+    let asset1PoolAmount = 0
+    let asset2PoolAmount = 0
+    
+    if (assetId == this.asset1Id) {
+      asset1PoolAmount = assetAmount
+      asset2PoolAmount = Math.floor(asset1PoolAmount*this.asset2Balance/this.asset1Balance)
+    } else {
+      asset2PoolAmount = assetAmount
+      asset1PoolAmount = Math.ceil(asset2PoolAmount*this.asset1Balance/this.asset2Balance)
+    }
+    let lpsIssued = Math.floor(asset1PoolAmount*this.lpCirculation/this.asset1Balance)
+    
+    return new BalanceDelta(-1 * asset1PoolAmount, -1 *  asset2PoolAmount, lpsIssued)
+  }
+
+  // burn quote
+  
+  // swap_exact_for quote
+  
+  // swap_for_exact quote
 
 }
