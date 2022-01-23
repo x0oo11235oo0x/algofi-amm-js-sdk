@@ -91,6 +91,12 @@ export default class Pool {
     return this.poolStatus
   }
   
+  // TXN SIGNER
+  
+  async signTxnWithLogicSig(txn : Transaction) {
+    return algosdk.signLogicSigTransaction(txn, this.logicSig)
+  }
+  
   // TXN GENERATORS
 
   async getCreatePoolTxn(sender : string):Promise<Transaction> {
