@@ -162,7 +162,7 @@ export default class Pool {
       rekeyTo: undefined,
     })
     
-    return [txn0, txn1, txn2, txn3]
+    return algosdk.assignGroupID([txn0, txn1, txn2, txn3])
   }
 
   async getLPTokenOptInTxn(sender : string):Promise<Transaction[]> {
@@ -222,7 +222,7 @@ export default class Pool {
       rekeyTo: undefined,
     })
   
-    return [txn0, txn1, txn2, txn3, txn4]
+    return algosdk.assignGroupID([txn0, txn1, txn2, txn3, txn4])
   }
 
   async getBurnTxns(sender : string,
@@ -259,7 +259,7 @@ export default class Pool {
       rekeyTo: undefined,
     })
   
-    return [txn0, txn1, txn2]
+    return algosdk.assignGroupID([txn0, txn1, txn2])
   }
 
   async getSwapExactForTxns(sender : string,
@@ -285,7 +285,7 @@ export default class Pool {
       rekeyTo: undefined,
     })
   
-    return [txn0, txn1]
+    return algosdk.assignGroupID([txn0, txn1])
   }
 
   async getSwapForExactTxns(sender : string,
@@ -324,7 +324,7 @@ export default class Pool {
       rekeyTo: undefined,
     })
   
-    return [txn0, txn1, txn2]
+    return algosdk.assignGroupID([txn0, txn1, txn2])
   }
 
   // QUOTES
