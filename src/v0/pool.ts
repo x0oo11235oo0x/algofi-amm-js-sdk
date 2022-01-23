@@ -90,7 +90,19 @@ export default class Pool {
     
     return this.poolStatus
   }
+
+  // GETTERS
   
+  async getPoolPrice(assetId : number) {
+    if (assetId === this.asset1Id) {
+      return this.asset1Balance / this.asset2Balance
+    } else if (assetId === this.asset2Id) {
+      return this.asset2Balance / this.asset1Balance
+    } else {
+      throw new Error("Invalid asset id")
+    }
+  } 
+
   // TXN SIGNER
   
   async signTxnWithLogicSig(txn : Transaction) {
@@ -336,6 +348,17 @@ export default class Pool {
   // QUOTES
 
   // pool quote
+  async getInitialPoolQuote(asset1PooledAmount : number,
+                            asset2PooledAmount : number) {
+    let lpsIssued = 0
+    if (asset1PooledAmount * asset2PooledAmount > 2**64 - 1) {
+      lpsIssued = Math.sqrt(asset1PooledAmount) * Math.sqrt(asset2PooledAmount)
+    } else {
+      lpsIssued = Math.sqrt(asset1PooledAmount * asset2PooledAmount)
+    }
+    return new BalanceDelta(this, -1 * asset1PooledAmount, -1 * asset2PooledAmount, lpsIssued)
+  }
+  
   async getPoolQuote(assetId : number,
                      assetAmount : number) {
     if (this.lpCirculation === 0) {

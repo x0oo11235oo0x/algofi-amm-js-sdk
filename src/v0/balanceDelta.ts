@@ -22,6 +22,8 @@ export default class BalanceDelta {
     // calculate price delta
     if (lpDelta === 0) {
       this.priceDelta = 0
+    } else if (pool.lpCirculation === 0) {
+      this.priceDelta = 0
     } else {
       let startingPriceRatio = pool.asset1Balance / pool.asset2Balance
       let finalPriceRatio = (pool.asset1Balance + asset1Delta) / (pool.asset2Balance + asset2Delta)

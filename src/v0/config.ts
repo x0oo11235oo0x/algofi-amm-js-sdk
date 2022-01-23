@@ -4,6 +4,10 @@ import {
   CLEAR_STATE_PROGRAM
 } from "./approvalPrograms"
 
+// CONSTANTS
+
+export const ALGO_ASSET_ID = 1;
+
 // ENUMS
 
 export enum Network {
@@ -71,6 +75,22 @@ export function getSwapFee(poolType : PoolType) : number {
     return 0.003
   } else {
     return 0.01
+  }
+}
+
+export function getUSDCAssetId(network : Network) : number {
+  if (network === Network.MAINNET) {
+    return 31566704
+  } else {
+    return 10101010
+  }
+}
+
+export function getSTBLAssetId(network : Network) : number {
+  if (network === Network.MAINNET) {
+    return 465865291
+  } else {
+    return 20202020
   }
 }
 
