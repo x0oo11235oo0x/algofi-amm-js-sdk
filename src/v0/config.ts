@@ -66,6 +66,14 @@ export function getManagerApplicationId(network : Network) : number {
   return managerApplicationIds[network]
 }
 
+export function getSwapFee(poolType : PoolType) : number {
+  if (poolType === PoolType.CONSTANT_PRODUCT_30BP_FEE) {
+    return 0.003
+  } else {
+    return 0.01
+  }
+}
+
 // STRING CONSTANTS
 export const MANAGER_STRINGS = {
     flash_loan_fee : "flf",

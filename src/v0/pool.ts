@@ -14,6 +14,7 @@ import {
   getApprovalProgramByType,
   getClearStateProgram,
   getManagerApplicationId,
+  getSwapFee,
   POOL_STRINGS,
   MANAGER_STRINGS
 } from "./config"
@@ -36,6 +37,7 @@ export default class Pool {
   public asset1Balance : number;
   public asset2Balance : number;
   public lpCirculation : number;
+  public swapFee : number;
   
   constructor(
     algod : Algodv2,
@@ -55,6 +57,7 @@ export default class Pool {
     this.managerApplicationId = getManagerApplicationId(network)
     this.validatorIndex = getValidatorIndex(network, this.poolType)
     this.logicSig = new LogicSigAccount(generateLogicSig(asset1Id, asset2Id, this.managerApplicationId, this.validatorIndex))
+    this.swapFee = getSwapFee(this.poolType)
   }
 
   async loadState() : Promise<PoolStatus> {
@@ -333,25 +336,76 @@ export default class Pool {
       throw new Error("Error: pool is empty")
     }
     
-    let asset1PoolAmount = 0
-    let asset2PoolAmount = 0
+    let asset1PooledAmount = 0
+    let asset2PooledAmount = 0
     
     if (assetId == this.asset1Id) {
-      asset1PoolAmount = assetAmount
-      asset2PoolAmount = Math.floor(asset1PoolAmount*this.asset2Balance/this.asset1Balance)
+      asset1PooledAmount = assetAmount
+      asset2PooledAmount = Math.floor(asset1PooledAmount * this.asset2Balance / this.asset1Balance)
     } else {
-      asset2PoolAmount = assetAmount
-      asset1PoolAmount = Math.ceil(asset2PoolAmount*this.asset1Balance/this.asset2Balance)
+      asset2PooledAmount = assetAmount
+      asset1PooledAmount = Math.ceil(asset2PooledAmount * this.asset1Balance / this.asset2Balance)
     }
-    let lpsIssued = Math.floor(asset1PoolAmount*this.lpCirculation/this.asset1Balance)
+    let lpsIssued = Math.floor(asset1PooledAmount * this.lpCirculation / this.asset1Balance)
     
-    return new BalanceDelta(-1 * asset1PoolAmount, -1 *  asset2PoolAmount, lpsIssued)
+    return new BalanceDelta(-1 * asset1PooledAmount, -1 * asset2PooledAmount, lpsIssued)
   }
 
   // burn quote
+  async getBurnQuote(lpAmount : number) {
+    if (this.lpCirculation === 0) {
+      throw new Error("Error: pool is empty")
+    }
+    
+    if (this.lpCirculation < lpAmount) {
+      throw new Error("Error: cannot burn more lp tokens than are in circulation")
+    }
+    
+    let asset1Amount = Math.floor(lpAmount * this.asset1Balance / this.lpCirculation)
+    let asset2Amount = Math.floor(lpAmount * this.asset2Balance / this.lpCirculation)
+
+    return new BalanceDelta(asset1Amount, asset2Amount, -1 * lpAmount)
+  }
   
   // swap_exact_for quote
+  async getSwapExactForQuote(swapInAssetId : number,
+                             swapInAmount : number) {
+    if (this.lpCirculation === 0) {
+      throw new Error("Error: pool is empty")
+    }
+    
+    let swapInAmountLessFees = swapInAmount - Math.ceil(swapInAmount * this.swapFee)
+  
+    if (swapInAssetId == this.asset1Id) {
+      let swapOutAmount = Math.floor((this.asset2Balance * swapInAmountLessFees) / (this.asset1Balance + swapInAmountLessFees))
+      return new BalanceDelta(-1 * swapInAmount, swapOutAmount, 0)
+    } else {
+      let swapOutAmount = Math.floor((this.asset1Balance * swapInAmountLessFees) / (this.asset2Balance + swapInAmountLessFees))
+      return new BalanceDelta(swapOutAmount, -1 * swapInAmount, 0)
+    }
+  }
   
   // swap_for_exact quote
+  async getSwapForExactQuote(swapOutAssetId : number,
+                             swapOutAmount : number) {
+    if (this.lpCirculation === 0) {
+      throw new Error("Error: pool is empty")
+    }
+
+    let swapInAmountLessFees = 0
+    if (swapOutAssetId == this.asset1Id) {
+      swapInAmountLessFees = Math.floor((this.asset2Balance * swapOutAmount) / (this.asset1Balance - swapOutAmount)) - 1
+    } else {
+      swapInAmountLessFees = Math.floor((this.asset1Balance * swapOutAmount) / (this.asset2Balance - swapOutAmount)) - 1
+    }
+
+    let swapInAmount = Math.ceil(swapInAmountLessFees / (1 - this.swapFee))
+
+    if (swapOutAssetId == this.asset1Id) {
+      return new BalanceDelta(-1 * swapInAmount, swapOutAmount, 0)
+    } else {
+      return new BalanceDelta(swapOutAmount, -1 * swapInAmount, 0)
+    }
+  }
 
 }
