@@ -4,8 +4,8 @@ import algosdk, { Algodv2, LogicSigAccount, Transaction, getApplicationAddress, 
 // internal imports
 import {
   getApplicationGlobalState,
-  getApplicationPrograms,
-  getApplicationLocalState
+  getApplicationLocalState,
+  getAccountBalances
 } from "./stateUtilities"
 import {
   getParams,
@@ -86,7 +86,7 @@ export default class Pool {
     this.address = getApplicationAddress(this.applicationId)
     
     // load pool state
-    let poolState = getApplicationGlobalState(this.algod, this.applicationId)
+    let poolState = await getApplicationGlobalState(this.algod, this.applicationId)
     this.asset1Balance = poolState[POOL_STRINGS.balance_1]
     this.asset2Balance = poolState[POOL_STRINGS.balance_2]
     this.lpAssetId = poolState[POOL_STRINGS.lp_id]
@@ -102,8 +102,6 @@ export default class Pool {
 
     let approval_program = getApprovalProgramByType(this.poolType)
     let clear_state_program = await getClearStateProgram()
-    console.log(approval_program.length)
-    console.log(clear_state_program.length)
   
     const txn0 = algosdk.makeApplicationCreateTxnFromObject({
       from: sender,
@@ -148,7 +146,7 @@ export default class Pool {
       appArgs: [encodeUint64(this.asset1Id), encodeUint64(this.asset2Id), encodeUint64(this.validatorIndex)],
       accounts: [getApplicationAddress(poolApplicationID)],
       foreignApps: [poolApplicationID],
-      foreignAssets: undefined,
+      foreignAssets: [this.lpAssetId],
       rekeyTo: undefined,
     })
     
@@ -161,11 +159,16 @@ export default class Pool {
       suggestedParams: params,
       accounts: undefined,
       foreignApps: [this.managerApplicationId],
-      foreignAssets: this.asset1Id != 1 ? [this.asset1Id, this.asset2Id] : [this.asset2Id],
+      foreignAssets: this.asset1Id == 1 ? [this.asset2Id] : [this.asset1Id, this.asset2Id],
       rekeyTo: undefined,
     })
     
     return [txn0, txn1, txn2, txn3]
+  }
+
+  async getLPTokenOptInTxn(sender : string):Promise<Transaction[]> {
+    const params = await getParams(this.algod)
+    return [getPaymentTxn(params, sender, sender, this.lpAssetId, 0)]
   }
   
   async getPoolTxns(sender : string,
