@@ -94,7 +94,7 @@ export default class Pool {
   // TXN GENERATORS
 
   async getCreatePoolTxn(sender : string):Promise<Transaction> {
-    if (this.poolStatus == PoolStatus.ACTIVE) {
+    if (this.poolStatus === PoolStatus.ACTIVE) {
       throw new Error("Pool already active cannot generate create pool txn")
     }
     const params = await getParams(this.algod)
@@ -124,7 +124,7 @@ export default class Pool {
   }
   
   async getInitializePoolTxns(sender : string, poolApplicationID : number):Promise<Transaction[]> {
-    if (this.poolStatus == PoolStatus.ACTIVE) {
+    if (this.poolStatus === PoolStatus.ACTIVE) {
       throw new Error("Pool already active cannot generate initialize pool txn")
     }
     const params = await getParams(this.algod)
@@ -158,7 +158,7 @@ export default class Pool {
       suggestedParams: params,
       accounts: undefined,
       foreignApps: [this.managerApplicationId],
-      foreignAssets: this.asset1Id == 1 ? [this.asset2Id] : [this.asset1Id, this.asset2Id],
+      foreignAssets: this.asset1Id === 1 ? [this.asset2Id] : [this.asset1Id, this.asset2Id],
       rekeyTo: undefined,
     })
     
@@ -281,7 +281,7 @@ export default class Pool {
       suggestedParams: params,
       accounts: undefined,
       foreignApps: undefined,
-      foreignAssets: [swapInAsset == this.asset1Id ? this.asset2Id : this.asset1Id],
+      foreignAssets: [swapInAsset === this.asset1Id ? this.asset2Id : this.asset1Id],
       rekeyTo: undefined,
     })
   
@@ -307,7 +307,7 @@ export default class Pool {
       suggestedParams: params,
       accounts: undefined,
       foreignApps: undefined,
-      foreignAssets: [swapInAsset == this.asset1Id ? this.asset2Id : this.asset1Id],
+      foreignAssets: [swapInAsset === this.asset1Id ? this.asset2Id : this.asset1Id],
       rekeyTo: undefined,
     })
   
@@ -339,7 +339,7 @@ export default class Pool {
     let asset1PooledAmount = 0
     let asset2PooledAmount = 0
     
-    if (assetId == this.asset1Id) {
+    if (assetId === this.asset1Id) {
       asset1PooledAmount = assetAmount
       asset2PooledAmount = Math.floor(asset1PooledAmount * this.asset2Balance / this.asset1Balance)
     } else {
@@ -348,7 +348,7 @@ export default class Pool {
     }
     let lpsIssued = Math.floor(asset1PooledAmount * this.lpCirculation / this.asset1Balance)
     
-    return new BalanceDelta(-1 * asset1PooledAmount, -1 * asset2PooledAmount, lpsIssued)
+    return new BalanceDelta(this, -1 * asset1PooledAmount, -1 * asset2PooledAmount, lpsIssued)
   }
 
   // burn quote
@@ -364,7 +364,7 @@ export default class Pool {
     let asset1Amount = Math.floor(lpAmount * this.asset1Balance / this.lpCirculation)
     let asset2Amount = Math.floor(lpAmount * this.asset2Balance / this.lpCirculation)
 
-    return new BalanceDelta(asset1Amount, asset2Amount, -1 * lpAmount)
+    return new BalanceDelta(this, asset1Amount, asset2Amount, -1 * lpAmount)
   }
   
   // swap_exact_for quote
@@ -376,12 +376,12 @@ export default class Pool {
     
     let swapInAmountLessFees = swapInAmount - Math.ceil(swapInAmount * this.swapFee)
   
-    if (swapInAssetId == this.asset1Id) {
+    if (swapInAssetId === this.asset1Id) {
       let swapOutAmount = Math.floor((this.asset2Balance * swapInAmountLessFees) / (this.asset1Balance + swapInAmountLessFees))
-      return new BalanceDelta(-1 * swapInAmount, swapOutAmount, 0)
+      return new BalanceDelta(this, -1 * swapInAmount, swapOutAmount, 0)
     } else {
       let swapOutAmount = Math.floor((this.asset1Balance * swapInAmountLessFees) / (this.asset2Balance + swapInAmountLessFees))
-      return new BalanceDelta(swapOutAmount, -1 * swapInAmount, 0)
+      return new BalanceDelta(this, swapOutAmount, -1 * swapInAmount, 0)
     }
   }
   
@@ -393,7 +393,7 @@ export default class Pool {
     }
 
     let swapInAmountLessFees = 0
-    if (swapOutAssetId == this.asset1Id) {
+    if (swapOutAssetId === this.asset1Id) {
       swapInAmountLessFees = Math.floor((this.asset2Balance * swapOutAmount) / (this.asset1Balance - swapOutAmount)) - 1
     } else {
       swapInAmountLessFees = Math.floor((this.asset1Balance * swapOutAmount) / (this.asset2Balance - swapOutAmount)) - 1
@@ -401,10 +401,10 @@ export default class Pool {
 
     let swapInAmount = Math.ceil(swapInAmountLessFees / (1 - this.swapFee))
 
-    if (swapOutAssetId == this.asset1Id) {
-      return new BalanceDelta(-1 * swapInAmount, swapOutAmount, 0)
+    if (swapOutAssetId === this.asset1Id) {
+      return new BalanceDelta(this, swapOutAmount, -1 * swapInAmount, 0)
     } else {
-      return new BalanceDelta(swapOutAmount, -1 * swapInAmount, 0)
+      return new BalanceDelta(this, -1 * swapInAmount, swapOutAmount, 0)
     }
   }
 

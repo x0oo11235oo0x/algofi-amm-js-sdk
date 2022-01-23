@@ -1,17 +1,31 @@
+// imports
+import Pool from "./pool"
+
 // interface
 
 export default class BalanceDelta {
-  public asset1_delta : number;
-  public asset2_delta : number;
-  public lp_delta : number;
+  public asset1Delta : number;
+  public asset2Delta : number;
+  public lpDelta : number;
+  public priceDelta : number;
   
   constructor(
-    asset1_delta : number,
-    asset2_delta : number,
-    lp_delta : number
+    pool : Pool,
+    asset1Delta : number,
+    asset2Delta : number,
+    lpDelta : number,
   ) {
-    this.asset1_delta = asset1_delta
-    this.asset2_delta = asset2_delta
-    this.lp_delta = lp_delta
+    this.asset1Delta = asset1Delta
+    this.asset2Delta = asset2Delta
+    this.lpDelta = lpDelta
+    
+    // calculate price delta
+    if (lpDelta === 0) {
+      this.priceDelta = 0
+    } else {
+      let startingPriceRatio = pool.asset1Balance / pool.asset2Balance
+      let finalPriceRatio = (pool.asset1Balance + asset1Delta) / (pool.asset2Balance + asset2Delta)
+      this.priceDelta = Math.abs((startingPriceRatio / finalPriceRatio) - 1)
+    }
   }
 }
