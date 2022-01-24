@@ -6,6 +6,7 @@ import {
   PoolStatus
 } from "./config"
 import Pool from "./pool"
+import Asset from "./asset"
 
 // interface
 
@@ -39,4 +40,9 @@ export default class AlgofiAMMClient {
     }
   }
   
+  async getAsset(assetId : number) {
+    let asset = new Asset(this, assetId)
+    await asset.loadState()
+    return asset
+  }
 }

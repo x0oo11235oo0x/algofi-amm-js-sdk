@@ -82,7 +82,7 @@ export function getUSDCAssetId(network : Network) : number {
   if (network === Network.MAINNET) {
     return 31566704
   } else {
-    return 10101010
+    return 51435943
   }
 }
 
@@ -90,7 +90,7 @@ export function getSTBLAssetId(network : Network) : number {
   if (network === Network.MAINNET) {
     return 465865291
   } else {
-    return 20202020
+    return 51437163
   }
 }
 
