@@ -256,7 +256,7 @@ export default class Pool {
     const txn1 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: this.applicationId,
-      appArgs: [enc.encode("ba10")],
+      appArgs: [enc.encode("ba1o")],
       suggestedParams: params,
       accounts: undefined,
       foreignApps: undefined,
@@ -269,7 +269,7 @@ export default class Pool {
     const txn2 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: this.applicationId,
-      appArgs: [enc.encode("ba20")],
+      appArgs: [enc.encode("ba2o")],
       suggestedParams: params,
       accounts: undefined,
       foreignApps: undefined,
