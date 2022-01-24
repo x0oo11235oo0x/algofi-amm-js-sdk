@@ -348,8 +348,8 @@ export default class Pool {
   // QUOTES
 
   // pool quote
-  async getInitialPoolQuote(asset1PooledAmount : number,
-                            asset2PooledAmount : number) {
+  async getEmptyPoolQuote(asset1PooledAmount : number,
+                          asset2PooledAmount : number) {
     let lpsIssued = 0
     if (asset1PooledAmount * asset2PooledAmount > 2**64 - 1) {
       lpsIssued = Math.sqrt(asset1PooledAmount) * Math.sqrt(asset2PooledAmount)
