@@ -359,7 +359,7 @@ export default class Pool {
     return new BalanceDelta(this, -1 * asset1PooledAmount, -1 * asset2PooledAmount, lpsIssued)
   }
   
-  async getPoolQuote(assetId : number,
+  getPoolQuote(assetId : number,
                      assetAmount : number) {
     if (this.lpCirculation === 0) {
       throw new Error("Error: pool is empty")
