@@ -298,7 +298,7 @@ export default class Pool {
       appArgs: [enc.encode("sef"), encodeUint64(minAmountToReceive)],
       suggestedParams: params,
       accounts: undefined,
-      foreignApps: undefined,
+      foreignApps: [this.managerApplicationId],
       foreignAssets: [swapInAsset === this.asset1Id ? this.asset2Id : this.asset1Id],
       rekeyTo: undefined,
     })
@@ -324,7 +324,7 @@ export default class Pool {
       appArgs: [enc.encode("sfe"), encodeUint64(amountToReceive)],
       suggestedParams: params,
       accounts: undefined,
-      foreignApps: undefined,
+      foreignApps: [this.managerApplicationId],
       foreignAssets: [swapInAsset === this.asset1Id ? this.asset2Id : this.asset1Id],
       rekeyTo: undefined,
     })
@@ -397,7 +397,7 @@ export default class Pool {
   }
   
   // swap_exact_for quote
-  async getSwapExactForQuote(swapInAssetId : number,
+  getSwapExactForQuote(swapInAssetId : number,
                              swapInAmount : number) {
     if (this.lpCirculation === 0) {
       throw new Error("Error: pool is empty")
@@ -415,7 +415,7 @@ export default class Pool {
   }
   
   // swap_for_exact quote
-  async getSwapForExactQuote(swapOutAssetId : number,
+  getSwapForExactQuote(swapOutAssetId : number,
                              swapOutAmount : number) {
     if (this.lpCirculation === 0) {
       throw new Error("Error: pool is empty")

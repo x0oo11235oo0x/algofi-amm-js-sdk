@@ -11,21 +11,26 @@ async function test() {
     
     console.log("TESTING")
     let a_client = new algofi.AlgofiAMMClient(client, algofi.Network.TESTNET)
-    
-    let asset2_id = 1
-    let asset1_id = 66006476
-    
-    let app_id = 66123220
-    
+
+    let asset1_id = 1
+    let asset2_id = 51435943
+
     let pool = await a_client.getPool(algofi.PoolType.CONSTANT_PRODUCT_30BP_FEE, asset1_id, asset2_id)
     console.log(pool.poolType)
     console.log(pool.asset1Id)
     console.log(pool.asset2Id)
     console.log(pool.logicSig.address())
-    let asset = await a_client.getAsset(asset1_id)
-    console.log(asset)
-    await asset.refreshPrice()
-    console.log(asset.price)
+    console.log("pool=",pool)
+    console.log("pool.asset1Balance=",pool.asset1Balance)
+    console.log("pool.asset2Balance=",pool.asset2Balance)
+    console.log("pool.getSwapExactForQuote(1,1e5)=", pool.getSwapExactForQuote(1,1e5))
+    console.log("pool.getSwapExactForQuote(1,1e6)=", pool.getSwapExactForQuote(1,1e6))
+    console.log("pool.getSwapExactForQuote(1,1e7)=", pool.getSwapExactForQuote(1,1e7))
+    console.log("pool.getSwapExactForQuote(1,1e8)=", pool.getSwapExactForQuote(1,1e8))
+//    let asset = await a_client.getAsset(asset1_id)
+//    console.log(asset)
+//    await asset.refreshPrice()
+//    console.log(asset.price)
 
 
     //  'FM3WTT2MZAJTMYNN5OWHMBSYIYV2HONBRC7VFYOX6AZU5OFG6XGQ',
