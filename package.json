@@ -1,6 +1,6 @@
 {
   "name": "@algofi-amm/v0",
-  "version": "1.2.8",
+  "version": "0.0.1",
   "description": "The official JavaScript SDK for the Algofi AMM",
   "main": "dist/index.js",
   "files": [
@@ -38,5 +38,8 @@
     "singleQuote": false
   },
   "author": "Blockchain Technologies, Inc.",
-  "license": "MIT"
+  "license": "MIT",
+  "directories": {
+    "example": "examples"
+  }
 }
