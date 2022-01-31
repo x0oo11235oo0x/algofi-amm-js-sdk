@@ -1,5 +1,5 @@
 {
-  "name": "@algofi-amm/v0",
+  "name": "@algofi/amm-v0",
   "version": "0.0.2",
   "description": "The official JavaScript SDK for the Algofi AMM",
   "main": "dist/index.js",
