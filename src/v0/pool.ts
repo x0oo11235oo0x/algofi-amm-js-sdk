@@ -1,5 +1,12 @@
 // external imports
-import algosdk, { Algodv2, LogicSigAccount, Transaction, getApplicationAddress, encodeUint64, OnApplicationComplete } from "algosdk"
+import algosdk, {
+  Algodv2,
+  LogicSigAccount,
+  Transaction,
+  getApplicationAddress,
+  encodeUint64,
+  OnApplicationComplete
+} from "algosdk"
 
 // internal imports
 import { getApplicationGlobalState, getApplicationLocalState, getAccountBalances } from "./stateUtilities"
@@ -22,32 +29,26 @@ import {
 // interface
 
 export default class Pool {
-  public algod : Algodv2;
-  public network : Network;
-  public poolType : PoolType;
-  public managerApplicationId : number;
-  public asset1Id : number;
-  public asset2Id : number;
-  public validatorIndex : number;
-  public logicSig : LogicSigAccount;
-  public poolStatus : PoolStatus;
-  public applicationId : number;
-  public address : string;
-  public lpAssetId : number;
-  public asset1Balance : number;
-  public asset2Balance : number;
-  public lpCirculation : number;
-  public swapFee : number;
-  
-  constructor(
-    algod : Algodv2,
-    network : Network,
-    poolType : PoolType,
-    asset1Id : number,
-    asset2Id : number
-  ) {
+  public algod: Algodv2
+  public network: Network
+  public poolType: PoolType
+  public managerApplicationId: number
+  public asset1Id: number
+  public asset2Id: number
+  public validatorIndex: number
+  public logicSig: LogicSigAccount
+  public poolStatus: PoolStatus
+  public applicationId: number
+  public address: string
+  public lpAssetId: number
+  public asset1Balance: number
+  public asset2Balance: number
+  public lpCirculation: number
+  public swapFee: number
+
+  constructor(algod: Algodv2, network: Network, poolType: PoolType, asset1Id: number, asset2Id: number) {
     if (asset1Id >= asset2Id) {
-      throw new Error("Invalid asset ordering. Assert 1 must be less than Asset 2");
+      throw new Error("Invalid asset ordering. Assert 1 must be less than Asset 2")
     }
     this.algod = algod
     this.network = network
@@ -56,14 +57,20 @@ export default class Pool {
     this.asset2Id = asset2Id
     this.managerApplicationId = getManagerApplicationId(network)
     this.validatorIndex = getValidatorIndex(network, this.poolType)
-    this.logicSig = new LogicSigAccount(generateLogicSig(asset1Id, asset2Id, this.managerApplicationId, this.validatorIndex))
+    this.logicSig = new LogicSigAccount(
+      generateLogicSig(asset1Id, asset2Id, this.managerApplicationId, this.validatorIndex)
+    )
     this.swapFee = getSwapFee(this.poolType)
   }
 
-  async loadState() : Promise<PoolStatus> {
+  async loadState(): Promise<PoolStatus> {
     // get logic sig state
-    let logicSigLocalState = await getApplicationLocalState(this.algod, this.logicSig.address(), this.managerApplicationId)
-    
+    let logicSigLocalState = await getApplicationLocalState(
+      this.algod,
+      this.logicSig.address(),
+      this.managerApplicationId
+    )
+
     // pool is uninitialized
     if (Object.keys(logicSigLocalState).length === 0) {
       this.poolStatus = PoolStatus.UNINITIALIZED
@@ -71,29 +78,31 @@ export default class Pool {
     } else {
       this.poolStatus = PoolStatus.ACTIVE
     }
-    
-    if (logicSigLocalState[MANAGER_STRINGS.registered_asset_1_id] !== this.asset1Id ||
-        logicSigLocalState[MANAGER_STRINGS.registered_asset_2_id] !== this.asset2Id ||
-        logicSigLocalState[MANAGER_STRINGS.validator_index] !== this.validatorIndex) {
+
+    if (
+      logicSigLocalState[MANAGER_STRINGS.registered_asset_1_id] !== this.asset1Id ||
+      logicSigLocalState[MANAGER_STRINGS.registered_asset_2_id] !== this.asset2Id ||
+      logicSigLocalState[MANAGER_STRINGS.validator_index] !== this.validatorIndex
+    ) {
       throw new Error("Logic sig state does not match expected")
     }
-    
+
     this.applicationId = logicSigLocalState[MANAGER_STRINGS.registered_pool_id]
     this.address = getApplicationAddress(this.applicationId)
-    
+
     // load pool state
     let poolState = await getApplicationGlobalState(this.algod, this.applicationId)
     this.asset1Balance = poolState[POOL_STRINGS.balance_1]
     this.asset2Balance = poolState[POOL_STRINGS.balance_2]
     this.lpAssetId = poolState[POOL_STRINGS.lp_id]
     this.lpCirculation = poolState[POOL_STRINGS.lp_circulation]
-    
+
     return this.poolStatus
   }
 
   // GETTERS
-  
-  async getPoolPrice(assetId : number) {
+
+  async getPoolPrice(assetId: number) {
     if (assetId === this.asset1Id) {
       return this.asset1Balance / this.asset2Balance
     } else if (assetId === this.asset2Id) {
@@ -101,17 +110,17 @@ export default class Pool {
     } else {
       throw new Error("Invalid asset id")
     }
-  } 
+  }
 
   // TXN SIGNER
-  
-  async signTxnWithLogicSig(txn : Transaction) {
+
+  async signTxnWithLogicSig(txn: Transaction) {
     return algosdk.signLogicSigTransaction(txn, this.logicSig)
   }
-  
+
   // TXN GENERATORS
 
-  async getCreatePoolTxn(sender : string):Promise<Transaction> {
+  async getCreatePoolTxn(sender: string): Promise<Transaction> {
     if (this.poolStatus === PoolStatus.ACTIVE) {
       throw new Error("Pool already active cannot generate create pool txn")
     }
@@ -119,7 +128,7 @@ export default class Pool {
 
     let approval_program = getApprovalProgramByType(this.poolType)
     let clear_state_program = await getClearStateProgram()
-  
+
     const txn0 = algosdk.makeApplicationCreateTxnFromObject({
       from: sender,
       suggestedParams: params,
@@ -135,13 +144,13 @@ export default class Pool {
       accounts: undefined,
       foreignApps: [this.managerApplicationId],
       foreignAssets: undefined,
-      rekeyTo: undefined,
+      rekeyTo: undefined
     })
-    
+
     return txn0
   }
-  
-  async getInitializePoolTxns(sender : string, poolApplicationID : number):Promise<Transaction[]> {
+
+  async getInitializePoolTxns(sender: string, poolApplicationID: number): Promise<Transaction[]> {
     if (this.poolStatus === PoolStatus.ACTIVE) {
       throw new Error("Pool already active cannot generate initialize pool txn")
     }
@@ -150,10 +159,10 @@ export default class Pool {
 
     // fund manager
     const txn0 = getPaymentTxn(params, sender, getApplicationAddress(this.managerApplicationId), 1, 500000)
-  
+
     // fund logic sig
     const txn1 = getPaymentTxn(params, sender, this.logicSig.address(), 1, 835000)
-  
+
     // opt logic sig into manager
     params.fee = 2000
     const txn2 = algosdk.makeApplicationOptInTxnFromObject({
@@ -164,9 +173,9 @@ export default class Pool {
       accounts: [getApplicationAddress(poolApplicationID)],
       foreignApps: [poolApplicationID],
       foreignAssets: undefined,
-      rekeyTo: undefined,
+      rekeyTo: undefined
     })
-    
+
     // pool
     params.fee = 4000
     const txn3 = algosdk.makeApplicationNoOpTxnFromObject({
@@ -177,33 +186,39 @@ export default class Pool {
       accounts: undefined,
       foreignApps: [this.managerApplicationId],
       foreignAssets: this.asset1Id === 1 ? [this.asset2Id] : [this.asset1Id, this.asset2Id],
-      rekeyTo: undefined,
+      rekeyTo: undefined
     })
-    
+
     return algosdk.assignGroupID([txn0, txn1, txn2, txn3])
   }
 
-  async getLPTokenOptInTxn(sender : string):Promise<Transaction[]> {
+  async getLPTokenOptInTxn(sender: string): Promise<Transaction[]> {
     const params = await getParams(this.algod)
     return [getPaymentTxn(params, sender, sender, this.lpAssetId, 0)]
   }
-  
-  async getPoolTxns(sender : string,
-                    asset1Amount : number,
-                    asset2Amount : number,
-                    maximumSlippage : number):Promise<Transaction[]> {
+
+  async getPoolTxns(
+    sender: string,
+    asset1Amount: number,
+    asset2Amount: number,
+    maximumSlippage: number,
+    doOptIn: boolean = true
+  ): Promise<Transaction[]> {
     const params = await getParams(this.algod)
     const enc = new TextEncoder()
 
+    // opt-in asset
+    const txn0 = getPaymentTxn(params, sender, sender, this.lpAssetId, 0)
+
     // send asset1
-    const txn0 = getPaymentTxn(params, sender, this.address, this.asset1Id, asset1Amount)
-  
+    const txn1 = getPaymentTxn(params, sender, this.address, this.asset1Id, asset1Amount)
+
     // send asset2
-    const txn1 = getPaymentTxn(params, sender, this.address, this.asset2Id, asset2Amount)
-  
+    const txn2 = getPaymentTxn(params, sender, this.address, this.asset2Id, asset2Amount)
+
     // pool
     params.fee = 3000
-    const txn2 = algosdk.makeApplicationNoOpTxnFromObject({
+    const txn3 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: this.applicationId,
       appArgs: [enc.encode(POOL_STRINGS.pool), encodeUint64(maximumSlippage)],
@@ -211,12 +226,12 @@ export default class Pool {
       accounts: undefined,
       foreignApps: undefined,
       foreignAssets: [this.lpAssetId],
-      rekeyTo: undefined,
+      rekeyTo: undefined
     })
 
     // redeem asset1 residual
     params.fee = 1000
-    const txn3 = algosdk.makeApplicationNoOpTxnFromObject({
+    const txn4 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: this.applicationId,
       appArgs: [enc.encode(POOL_STRINGS.redeem_pool_asset1_residual)],
@@ -224,12 +239,12 @@ export default class Pool {
       accounts: undefined,
       foreignApps: undefined,
       foreignAssets: [this.asset1Id],
-      rekeyTo: undefined,
+      rekeyTo: undefined
     })
-  
+
     // redeem asset2 residual
     params.fee = 1000
-    const txn4 = algosdk.makeApplicationNoOpTxnFromObject({
+    const txn5 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: this.applicationId,
       appArgs: [enc.encode("rpa2r")],
@@ -237,14 +252,13 @@ export default class Pool {
       accounts: undefined,
       foreignApps: undefined,
       foreignAssets: [this.asset2Id],
-      rekeyTo: undefined,
+      rekeyTo: undefined
     })
-  
-    return algosdk.assignGroupID([txn0, txn1, txn2, txn3, txn4])
+    let txns = doOptIn ? [txn0, txn1, txn2, txn3, txn4, txn5] : [txn1, txn2, txn3, txn4, txn5]
+    return algosdk.assignGroupID(txns)
   }
 
-  async getBurnTxns(sender : string,
-                    burnAmount : number):Promise<Transaction[]> {
+  async getBurnTxns(sender: string, burnAmount: number): Promise<Transaction[]> {
     const params = await getParams(this.algod)
     const enc = new TextEncoder()
 
@@ -261,9 +275,9 @@ export default class Pool {
       accounts: undefined,
       foreignApps: undefined,
       foreignAssets: [this.asset1Id],
-      rekeyTo: undefined,
+      rekeyTo: undefined
     })
-  
+
     // burn asset2 out
     params.fee = 2000
     const txn2 = algosdk.makeApplicationNoOpTxnFromObject({
@@ -274,64 +288,78 @@ export default class Pool {
       accounts: undefined,
       foreignApps: undefined,
       foreignAssets: [this.asset2Id],
-      rekeyTo: undefined,
+      rekeyTo: undefined
     })
-  
+
     return algosdk.assignGroupID([txn0, txn1, txn2])
   }
 
-  async getSwapExactForTxns(sender : string,
-                            swapInAsset : number,
-                            swapInAmount : number,
-                            minAmountToReceive : number):Promise<Transaction[]> {
+  async getSwapExactForTxns(
+    sender: string,
+    swapInAsset: number,
+    swapInAmount: number,
+    minAmountToReceive: number,
+    doOptIn: boolean = false,
+    assignGroup: boolean = true
+  ): Promise<Transaction[]> {
     const params = await getParams(this.algod)
     const enc = new TextEncoder()
+    const swapOutAsset = swapInAsset === this.asset1Id ? this.asset2Id : this.asset1Id
+
+    // opt-in asset
+    const txn0 = getPaymentTxn(params, sender, sender, swapOutAsset, 0)
 
     // send swap in asset
-    const txn0 = getPaymentTxn(params, sender, this.address, swapInAsset, swapInAmount)
+    const txn1 = getPaymentTxn(params, sender, this.address, swapInAsset, swapInAmount)
 
     // swap exact for
     params.fee = 2000
-    const txn1 = algosdk.makeApplicationNoOpTxnFromObject({
+    const txn2 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: this.applicationId,
       appArgs: [enc.encode("sef"), encodeUint64(minAmountToReceive)],
       suggestedParams: params,
       accounts: undefined,
       foreignApps: [this.managerApplicationId],
-      foreignAssets: [swapInAsset === this.asset1Id ? this.asset2Id : this.asset1Id],
-      rekeyTo: undefined,
+      foreignAssets: [swapOutAsset],
+      rekeyTo: undefined
     })
-  
-    return algosdk.assignGroupID([txn0, txn1])
+    let txns = doOptIn ? [txn0, txn1, txn2] : [txn1, txn2]
+    return algosdk.assignGroupID(txns)
   }
 
-  async getSwapForExactTxns(sender : string,
-                            swapInAsset : number,
-                            swapInAmount : number,
-                            amountToReceive : number):Promise<Transaction[]> {
+  async getSwapForExactTxns(
+    sender: string,
+    swapInAsset: number,
+    swapInAmount: number,
+    amountToReceive: number,
+    doOptIn: boolean = false,
+    assignGroup: boolean = true
+  ): Promise<Transaction[]> {
     const params = await getParams(this.algod)
     const enc = new TextEncoder()
-
+    const swapOutAsset = swapInAsset === this.asset1Id ? this.asset2Id : this.asset1Id
+    // opt-in asset
+    const txn0 = getPaymentTxn(params, sender, sender, swapOutAsset, 0)
     // send swap in asset
-    const txn0 = getPaymentTxn(params, sender, this.address, swapInAsset, swapInAmount)
+    const txn1 = getPaymentTxn(params, sender, this.address, swapInAsset, swapInAmount)
 
     // swap for exact
     params.fee = 2000
-    const txn1 = algosdk.makeApplicationNoOpTxnFromObject({
+    const txn2 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: this.applicationId,
       appArgs: [enc.encode("sfe"), encodeUint64(amountToReceive)],
       suggestedParams: params,
       accounts: undefined,
       foreignApps: [this.managerApplicationId],
-      foreignAssets: [swapInAsset === this.asset1Id ? this.asset2Id : this.asset1Id],
-      rekeyTo: undefined,
+      foreignAssets: [swapOutAsset],
+      rekeyTo: undefined
     })
-  
+
     // redeem unused swap in asset
     params.fee = 2000
-    const txn2 = algosdk.makeApplicationNoOpTxnFromObject({
+    const txn3 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: this.applicationId,
       appArgs: [enc.encode("rsr")],
@@ -339,84 +367,84 @@ export default class Pool {
       accounts: undefined,
       foreignApps: undefined,
       foreignAssets: [swapInAsset],
-      rekeyTo: undefined,
+      rekeyTo: undefined
     })
-  
-    return algosdk.assignGroupID([txn0, txn1, txn2])
+    let txns = doOptIn ? [txn0, txn1, txn2, txn3] : [txn1, txn2, txn3]
+    return assignGroup ? algosdk.assignGroupID(txns) : txns
   }
 
   // QUOTES
 
   // pool quote
-  async getEmptyPoolQuote(asset1PooledAmount : number,
-                          asset2PooledAmount : number) {
+  async getEmptyPoolQuote(asset1PooledAmount: number, asset2PooledAmount: number) {
     let lpsIssued = 0
-    if (asset1PooledAmount * asset2PooledAmount > 2**64 - 1) {
+    if (asset1PooledAmount * asset2PooledAmount > 2 ** 64 - 1) {
       lpsIssued = Math.sqrt(asset1PooledAmount) * Math.sqrt(asset2PooledAmount)
     } else {
       lpsIssued = Math.sqrt(asset1PooledAmount * asset2PooledAmount)
     }
     return new BalanceDelta(this, -1 * asset1PooledAmount, -1 * asset2PooledAmount, lpsIssued)
   }
-  
-  getPoolQuote(assetId : number,
-                     assetAmount : number) {
+
+  getPoolQuote(assetId: number, assetAmount: number) {
     if (this.lpCirculation === 0) {
       throw new Error("Error: pool is empty")
     }
-    
+
     let asset1PooledAmount = 0
     let asset2PooledAmount = 0
-    
+
     if (assetId === this.asset1Id) {
       asset1PooledAmount = assetAmount
-      asset2PooledAmount = Math.floor(asset1PooledAmount * this.asset2Balance / this.asset1Balance)
+      asset2PooledAmount = Math.floor((asset1PooledAmount * this.asset2Balance) / this.asset1Balance)
     } else {
       asset2PooledAmount = assetAmount
-      asset1PooledAmount = Math.ceil(asset2PooledAmount * this.asset1Balance / this.asset2Balance)
+      asset1PooledAmount = Math.ceil((asset2PooledAmount * this.asset1Balance) / this.asset2Balance)
     }
-    let lpsIssued = Math.floor(asset1PooledAmount * this.lpCirculation / this.asset1Balance)
-    
+    let lpsIssued = Math.floor((asset1PooledAmount * this.lpCirculation) / this.asset1Balance)
+
     return new BalanceDelta(this, -1 * asset1PooledAmount, -1 * asset2PooledAmount, lpsIssued)
   }
 
   // burn quote
-  async getBurnQuote(lpAmount : number) {
+  async getBurnQuote(lpAmount: number) {
     if (this.lpCirculation === 0) {
       throw new Error("Error: pool is empty")
     }
-    
+
     if (this.lpCirculation < lpAmount) {
       throw new Error("Error: cannot burn more lp tokens than are in circulation")
     }
-    
-    let asset1Amount = Math.floor(lpAmount * this.asset1Balance / this.lpCirculation)
-    let asset2Amount = Math.floor(lpAmount * this.asset2Balance / this.lpCirculation)
+
+    let asset1Amount = Math.floor((lpAmount * this.asset1Balance) / this.lpCirculation)
+    let asset2Amount = Math.floor((lpAmount * this.asset2Balance) / this.lpCirculation)
 
     return new BalanceDelta(this, asset1Amount, asset2Amount, -1 * lpAmount)
   }
-  
+
   // swap_exact_for quote
-  getSwapExactForQuote(swapInAssetId : number,
-                             swapInAmount : number) {
+  getSwapExactForQuote(swapInAssetId: number, swapInAmount: number) {
     if (this.lpCirculation === 0) {
       throw new Error("Error: pool is empty")
     }
-    
+
     let swapInAmountLessFees = swapInAmount - Math.ceil(swapInAmount * this.swapFee)
-  
+
     if (swapInAssetId === this.asset1Id) {
-      let swapOutAmount = Math.floor((this.asset2Balance * swapInAmountLessFees) / (this.asset1Balance + swapInAmountLessFees))
+      let swapOutAmount = Math.floor(
+        (this.asset2Balance * swapInAmountLessFees) / (this.asset1Balance + swapInAmountLessFees)
+      )
       return new BalanceDelta(this, -1 * swapInAmount, swapOutAmount, 0)
     } else {
-      let swapOutAmount = Math.floor((this.asset1Balance * swapInAmountLessFees) / (this.asset2Balance + swapInAmountLessFees))
+      let swapOutAmount = Math.floor(
+        (this.asset1Balance * swapInAmountLessFees) / (this.asset2Balance + swapInAmountLessFees)
+      )
       return new BalanceDelta(this, swapOutAmount, -1 * swapInAmount, 0)
     }
   }
-  
+
   // swap_for_exact quote
-  getSwapForExactQuote(swapOutAssetId : number,
-                             swapOutAmount : number) {
+  getSwapForExactQuote(swapOutAssetId: number, swapOutAmount: number) {
     if (this.lpCirculation === 0) {
       throw new Error("Error: pool is empty")
     }
@@ -436,5 +464,4 @@ export default class Pool {
       return new BalanceDelta(this, -1 * swapInAmount, swapOutAmount, 0)
     }
   }
-
 }
