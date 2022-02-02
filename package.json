@@ -23,7 +23,7 @@
     "prepublishOnly": "tsdx build"
   },
   "dependencies": {
-    "algosdk": "github:algorand/js-algorand-sdk"
+    "algosdk": "1.13.1"
   },
   "devDependencies": {
     "@types/jest": "^24.0.25",
