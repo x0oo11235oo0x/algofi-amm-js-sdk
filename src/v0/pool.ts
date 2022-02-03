@@ -202,7 +202,8 @@ export default class Pool {
     asset1Amount: number,
     asset2Amount: number,
     maximumSlippage: number,
-    doOptIn: boolean = true
+    doOptIn: boolean = true,
+    assignGroup: boolean = true
   ): Promise<Transaction[]> {
     const params = await getParams(this.algod)
     const enc = new TextEncoder()
@@ -255,10 +256,10 @@ export default class Pool {
       rekeyTo: undefined
     })
     let txns = doOptIn ? [txn0, txn1, txn2, txn3, txn4, txn5] : [txn1, txn2, txn3, txn4, txn5]
-    return algosdk.assignGroupID(txns)
+    return assignGroup ? algosdk.assignGroupID(txns) : txns
   }
 
-  async getBurnTxns(sender: string, burnAmount: number): Promise<Transaction[]> {
+  async getBurnTxns(sender: string, burnAmount: number, assignGroup: boolean = true): Promise<Transaction[]> {
     const params = await getParams(this.algod)
     const enc = new TextEncoder()
 
@@ -290,8 +291,8 @@ export default class Pool {
       foreignAssets: [this.asset2Id],
       rekeyTo: undefined
     })
-
-    return algosdk.assignGroupID([txn0, txn1, txn2])
+    let txns = [txn0, txn1, txn2]
+    return assignGroup ? algosdk.assignGroupID(txns) : txns
   }
 
   async getSwapExactForTxns(
@@ -325,7 +326,7 @@ export default class Pool {
       rekeyTo: undefined
     })
     let txns = doOptIn ? [txn0, txn1, txn2] : [txn1, txn2]
-    return algosdk.assignGroupID(txns)
+    return assignGroup ? algosdk.assignGroupID(txns) : txns
   }
 
   async getSwapForExactTxns(
@@ -370,6 +371,58 @@ export default class Pool {
       rekeyTo: undefined
     })
     let txns = doOptIn ? [txn0, txn1, txn2, txn3] : [txn1, txn2, txn3]
+    return assignGroup ? algosdk.assignGroupID(txns) : txns
+  }
+
+  async getZapLPTransactions(
+    sender: string,
+    zapInAsset: number,
+    zapInAmount: number,
+    maximumSlippage: number,
+    doOptIn: boolean = false,
+    doOptInLP: boolean = false,
+    assignGroup: boolean = true
+  ): Promise<Transaction[]> {
+    console.log("this=", this)
+    console.log("zapInAsset=", zapInAsset)
+    console.log("zapInAmount=", zapInAmount)
+    console.log("maximumSlippage=", maximumSlippage)
+    console.log("doOptIn=", doOptIn)
+    console.log("doOptInLP=", doOptInLP)
+    console.log("this.asset1Balance=", this.asset1Balance)
+    console.log("this.asset2Balance=", this.asset2Balance)
+
+    const balA = zapInAsset === this.asset1Id ? this.asset1Balance : this.asset2Balance
+    console.log("balA=", balA)
+
+    const swapInAmount = parseInt(String(Math.sqrt(balA * balA + balA * zapInAmount) - balA))
+    console.log("swapInAmount=", swapInAmount)
+
+    const swapInAssetId = zapInAsset === this.asset1Id ? this.asset1Id : this.asset2Id
+    console.log("swapInAssetId=", swapInAssetId)
+
+    const quote = this.getSwapExactForQuote(swapInAssetId, swapInAmount)
+    console.log("quote=", quote)
+
+    const amountToReceive = zapInAsset === this.asset1Id ? quote.asset2Delta : quote.asset1Delta
+    console.log("amountToReceive=", amountToReceive)
+
+    const swapForExactTxns = await this.getSwapForExactTxns(
+      sender,
+      zapInAsset,
+      zapInAmount - swapInAmount,
+      amountToReceive,
+      doOptIn,
+      false
+    )
+    const asset1Amount = zapInAsset === this.asset1Id ? swapInAmount : amountToReceive
+    const asset2Amount = zapInAsset === this.asset1Id ? amountToReceive : swapInAmount
+    const poolTxns = await this.getPoolTxns(sender, asset1Amount, asset2Amount, maximumSlippage, doOptInLP, false)
+
+    let txns = []
+    swapForExactTxns.forEach(txn => txns.push(txn))
+    poolTxns.forEach(txn => txns.push(txn))
+
     return assignGroup ? algosdk.assignGroupID(txns) : txns
   }
 
