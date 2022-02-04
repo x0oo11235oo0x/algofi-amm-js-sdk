@@ -378,46 +378,31 @@ export default class Pool {
     sender: string,
     zapInAsset: number,
     zapInAmount: number,
-    maximumSlippage: number,
+    maximumSlippageSwap: number,
     doOptIn: boolean = false,
     doOptInLP: boolean = false,
-    assignGroup: boolean = true
+    assignGroup: boolean = true,
+    maximumSlippageLP: number = 10000
   ): Promise<Transaction[]> {
-    console.log("this=", this)
-    console.log("zapInAsset=", zapInAsset)
-    console.log("zapInAmount=", zapInAmount)
-    console.log("maximumSlippage=", maximumSlippage)
-    console.log("doOptIn=", doOptIn)
-    console.log("doOptInLP=", doOptInLP)
-    console.log("this.asset1Balance=", this.asset1Balance)
-    console.log("this.asset2Balance=", this.asset2Balance)
-
     const balA = zapInAsset === this.asset1Id ? this.asset1Balance : this.asset2Balance
-    console.log("balA=", balA)
-
     const swapInAmount = parseInt(String(Math.sqrt(balA * balA + balA * zapInAmount) - balA))
-    console.log("swapInAmount=", swapInAmount)
-
     const swapInAssetId = zapInAsset === this.asset1Id ? this.asset1Id : this.asset2Id
-    console.log("swapInAssetId=", swapInAssetId)
-
     const quote = this.getSwapExactForQuote(swapInAssetId, swapInAmount)
-    console.log("quote=", quote)
-
     const amountToReceive = zapInAsset === this.asset1Id ? quote.asset2Delta : quote.asset1Delta
-    console.log("amountToReceive=", amountToReceive)
+    const minAmountToReceive = parseInt(String((1 - maximumSlippageSwap / 100000) * amountToReceive))
 
-    const swapForExactTxns = await this.getSwapForExactTxns(
+    const swapForExactTxns = await this.getSwapExactForTxns(
       sender,
       zapInAsset,
-      zapInAmount - swapInAmount,
-      amountToReceive,
+      swapInAmount,
+      minAmountToReceive,
       doOptIn,
       false
     )
-    const asset1Amount = zapInAsset === this.asset1Id ? swapInAmount : amountToReceive
-    const asset2Amount = zapInAsset === this.asset1Id ? amountToReceive : swapInAmount
-    const poolTxns = await this.getPoolTxns(sender, asset1Amount, asset2Amount, maximumSlippage, doOptInLP, false)
+
+    const asset1Amount = zapInAsset === this.asset1Id ? zapInAmount - swapInAmount : amountToReceive
+    const asset2Amount = zapInAsset === this.asset1Id ? amountToReceive : zapInAmount - swapInAmount
+    const poolTxns = await this.getPoolTxns(sender, asset1Amount, asset2Amount, maximumSlippageLP, doOptInLP, false)
 
     let txns = []
     swapForExactTxns.forEach(txn => txns.push(txn))
@@ -439,7 +424,7 @@ export default class Pool {
     return new BalanceDelta(this, -1 * asset1PooledAmount, -1 * asset2PooledAmount, lpsIssued)
   }
 
-  getPoolQuote(assetId: number, assetAmount: number) {
+  getPoolQuote(assetId: number, assetAmount: number, whatIfDelta1: number = 0, whatIfDelta2: number = 0) {
     if (this.lpCirculation === 0) {
       throw new Error("Error: pool is empty")
     }
@@ -449,12 +434,16 @@ export default class Pool {
 
     if (assetId === this.asset1Id) {
       asset1PooledAmount = assetAmount
-      asset2PooledAmount = Math.floor((asset1PooledAmount * this.asset2Balance) / this.asset1Balance)
+      asset2PooledAmount = Math.floor(
+        (asset1PooledAmount * (this.asset2Balance + whatIfDelta2)) / (this.asset1Balance + whatIfDelta1)
+      )
     } else {
       asset2PooledAmount = assetAmount
-      asset1PooledAmount = Math.ceil((asset2PooledAmount * this.asset1Balance) / this.asset2Balance)
+      asset1PooledAmount = Math.ceil(
+        (asset2PooledAmount * (this.asset1Balance + whatIfDelta1)) / (this.asset2Balance + whatIfDelta2)
+      )
     }
-    let lpsIssued = Math.floor((asset1PooledAmount * this.lpCirculation) / this.asset1Balance)
+    let lpsIssued = Math.floor((asset1PooledAmount * this.lpCirculation) / (this.asset1Balance + whatIfDelta1))
 
     return new BalanceDelta(this, -1 * asset1PooledAmount, -1 * asset2PooledAmount, lpsIssued)
   }

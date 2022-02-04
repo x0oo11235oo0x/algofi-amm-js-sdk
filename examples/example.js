@@ -38,15 +38,15 @@ async function test() {
   console.log("pool=", pool)
   console.log("pool.asset1Balance=", pool.asset1Balance)
   console.log("pool.asset2Balance=", pool.asset2Balance)
-  const zapInAmount = 11 * 1e6 // 11 ALGO
+  const zapInAmount = 1 * 1e6 // 11 ALGO
   const maximumSlippage = 1000 * 1 // 1%
   const sender = "MWWNJV6ZVXI52IA2HRN5CWYY6FCNV22PAVJDXCUOWHXUQG7QPEWLBHJFSY"
 
   const txns = await pool.getZapLPTransactions(sender, zapInAsset, zapInAmount, maximumSlippage, true, true)
-
+  //console.log("txns=", txns)
   const seed =
     "execute teach purpose spy random banner sail rather ozone lumber popular cattle cliff tumble title bicycle erode faculty bonus drum duck elder mansion ability essay"
-  console.log("txns=", txns)
+  //console.log("txns=", txns)
 
   //    let asset = await a_client.getAsset(asset1_id)
   //    console.log(asset)
