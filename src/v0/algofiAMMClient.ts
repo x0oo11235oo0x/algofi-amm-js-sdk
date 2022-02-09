@@ -7,6 +7,9 @@ import {
 } from "./config"
 import Pool from "./pool"
 import Asset from "./asset"
+import {
+  getAccountCreatedPools
+} from "./stateUtilities"
 
 // interface
 
@@ -21,7 +24,7 @@ export default class AlgofiAMMClient {
     this.algod = algod
     this.network = network
   }
-  
+
   async getPool(poolType : PoolType,
                 assetA : number,
                 assetB : number) : Promise<Pool> {
@@ -39,10 +42,14 @@ export default class AlgofiAMMClient {
       return pool
     }
   }
-  
-  async getAsset(assetId : number) {
+
+  async getAsset(assetId : number) : Promise<Asset> {
     let asset = new Asset(this, assetId)
     await asset.loadState()
     return asset
+  }
+
+  async getAccountCreatedPools(account : string) : Promise<{}> {
+    return await getAccountCreatedPools(this.algod, this.network, account)
   }
 }

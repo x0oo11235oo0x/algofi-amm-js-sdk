@@ -1,5 +1,16 @@
 import algosdk, { Algodv2 } from "algosdk"
 import { Base64Encoder } from "./encoder"
+import {
+  Network,
+  PoolType,
+  POOL_STRINGS
+} from "./config"
+import {
+  MAINNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT_TEXT,
+  MAINNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT_TEXT,
+  TESTNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT_TEXT,
+  TESTNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT_TEXT
+} from "./approvalPrograms"
 
 /**
  * Function to get global state of an application
@@ -59,8 +70,65 @@ export async function getAccountBalances(algodClient: Algodv2, address : string)
 
   let accountInfo = await algodClient.accountInformation(address).do()
   results[1] = accountInfo["amount"]
-  accountInfo.params["assets"].forEach(x => {
+  accountInfo["assets"].forEach(x => {
     results[x["asset-id"]] = x["amount"]
+  })
+  return results
+}
+
+/**
+ * Function to get pools created by a given user
+*
+ * @param   {Algodv2}           algodClient
+ * @param   {Network}           network
+ * @param   {string}            address
+ *
+ * @return  {int[]} list of application ids created by this account
+ */
+export async function getAccountCreatedPools(algodClient: Algodv2, network: Network, address: string): Promise<{}> {
+  let results = {}
+  let accountInfo = await algodClient.accountInformation(address).do()
+  accountInfo["created-apps"].forEach(app =>{
+    let pool_type = PoolType.CONSTANT_PRODUCT_30BP_FEE
+    if (network == Network.MAINNET) {
+      if (app["params"]["approval-program"] === MAINNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT_TEXT) {
+        pool_type = PoolType.CONSTANT_PRODUCT_30BP_FEE
+      } else if (app["params"]["approval-program"] === MAINNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT_TEXT) {
+        pool_type = PoolType.CONSTANT_PRODUCT_100BP_FEE
+      } else {
+        return
+      }
+    } else {
+      if (app["params"]["approval-program"] === TESTNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT_TEXT) {
+        pool_type = PoolType.CONSTANT_PRODUCT_30BP_FEE
+      } else if (app["params"]["approval-program"] === TESTNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT_TEXT) {
+        pool_type = PoolType.CONSTANT_PRODUCT_100BP_FEE
+      } else {
+        return
+      }
+    }
+    
+    let app_state = {}
+    app["params"]["global-state"].forEach(y => {
+      app_state[Base64Encoder.decode(y.key)] = y.value.uint
+    })
+    
+    let initialized = 0;
+    let asset_1_id = 0;
+    let asset_2_id = 0;
+    
+    if (POOL_STRINGS.asset1_id in app_state) {
+      asset_1_id = app_state[POOL_STRINGS.asset1_id]
+    }
+    if (POOL_STRINGS.asset2_id in app_state) {
+      asset_2_id = app_state[POOL_STRINGS.asset2_id]
+    }
+    if (POOL_STRINGS.initialized in app_state) {
+      initialized = app_state[POOL_STRINGS.initialized]
+    }
+    
+    results[app["id"]] = {"asset_1_id" : asset_1_id, "asset_2_id" : asset_2_id, "pool_type" : pool_type, "initialized" : initialized}
+    
   })
   return results
 }

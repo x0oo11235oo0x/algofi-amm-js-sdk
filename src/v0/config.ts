@@ -1,6 +1,8 @@
 import {
-  APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT,
-  APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT,
+  MAINNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT,
+  MAINNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT,
+  TESTNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT,
+  TESTNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT,
   CLEAR_STATE_PROGRAM
 } from "./approvalPrograms"
 
@@ -32,17 +34,6 @@ type EnumDictionary<T extends string | symbol | number, U> = {
 };
 
 export function getValidatorIndex(network : Network, poolType : PoolType) : number {
-  //const validatorIndexes: EnumDictionary<Network, EnumDictionary<PoolType, number>> = {
-  //  [Network.MAINNET] : {
-  //    [PoolType.CONSTANT_PRODUCT_30BP_FEE] : 0,
-  //    [PoolType.CONSTANT_PRODUCT_100BP_FEE] : 1
-  //  },
-  //  [Network.TESTNET] : {
-  //    [PoolType.CONSTANT_PRODUCT_30BP_FEE] : 0,
-  //    [PoolType.CONSTANT_PRODUCT_100BP_FEE] : 1
-  //  }
-  //}
-  //return validatorIndexes[network][poolType]
   if (poolType === PoolType.CONSTANT_PRODUCT_30BP_FEE) {
     return 0
   } else {
@@ -50,11 +41,19 @@ export function getValidatorIndex(network : Network, poolType : PoolType) : numb
   }
 }
 
-export function getApprovalProgramByType(poolType : PoolType) : Uint8Array {
-  if (poolType === PoolType.CONSTANT_PRODUCT_30BP_FEE) {
-    return APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT
+export function getApprovalProgramByType(network: Network, poolType : PoolType) : Uint8Array {
+  if (network === Network.MAINNET) {
+    if (poolType === PoolType.CONSTANT_PRODUCT_30BP_FEE) {
+      return MAINNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT
+    } else {
+      return MAINNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT
+    }
   } else {
-    return APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT
+    if (poolType === PoolType.CONSTANT_PRODUCT_30BP_FEE) {
+      return TESTNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT
+    } else {
+      return TESTNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT
+    }
   }
 }
 
