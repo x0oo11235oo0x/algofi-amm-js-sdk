@@ -385,9 +385,7 @@ export default class Pool {
     maximumSlippageLP: number = 10000
   ): Promise<Transaction[]> {
     const balA = zapInAsset === this.asset1Id ? this.asset1Balance : this.asset2Balance
-    const swapInAmount = parseInt(
-      String(((Math.sqrt(balA * balA + balA * zapInAmount) - balA) * 1) / (1 - this.swapFee))
-    )
+    const swapInAmount = parseInt(String((Math.sqrt(balA * balA + balA * zapInAmount * (1 + this.swapFee)) - balA) * 1))
     const swapInAssetId = zapInAsset === this.asset1Id ? this.asset1Id : this.asset2Id
     const quote = this.getSwapExactForQuote(swapInAssetId, swapInAmount)
     const amountToReceive = zapInAsset === this.asset1Id ? quote.asset2Delta : quote.asset1Delta
