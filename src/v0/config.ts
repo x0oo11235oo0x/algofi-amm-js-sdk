@@ -1,8 +1,8 @@
 import {
-  MAINNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT,
-  MAINNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT,
-  TESTNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT,
-  TESTNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT,
+  MAINNET_APPROVAL_PROGRAM_LOW_FEE_CONSTANT_PRODUCT,
+  MAINNET_APPROVAL_PROGRAM_HIGH_FEE_CONSTANT_PRODUCT,
+  TESTNET_APPROVAL_PROGRAM_LOW_FEE_CONSTANT_PRODUCT,
+  TESTNET_APPROVAL_PROGRAM_HIGH_FEE_CONSTANT_PRODUCT,
   CLEAR_STATE_PROGRAM
 } from "./approvalPrograms"
 
@@ -18,8 +18,8 @@ export enum Network {
 }
 
 export enum PoolType {
-  CONSTANT_PRODUCT_30BP_FEE = 0,
-  CONSTANT_PRODUCT_100BP_FEE = 1,
+  CONSTANT_PRODUCT_LOW_FEE = 0,
+  CONSTANT_PRODUCT_HIGH_FEE = 1,
 }
 
 export enum PoolStatus {
@@ -34,7 +34,7 @@ type EnumDictionary<T extends string | symbol | number, U> = {
 };
 
 export function getValidatorIndex(network : Network, poolType : PoolType) : number {
-  if (poolType === PoolType.CONSTANT_PRODUCT_30BP_FEE) {
+  if (poolType === PoolType.CONSTANT_PRODUCT_LOW_FEE) {
     return 0
   } else {
     return 1
@@ -43,16 +43,16 @@ export function getValidatorIndex(network : Network, poolType : PoolType) : numb
 
 export function getApprovalProgramByType(network: Network, poolType : PoolType) : Uint8Array {
   if (network === Network.MAINNET) {
-    if (poolType === PoolType.CONSTANT_PRODUCT_30BP_FEE) {
-      return MAINNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT
+    if (poolType === PoolType.CONSTANT_PRODUCT_LOW_FEE) {
+      return MAINNET_APPROVAL_PROGRAM_LOW_FEE_CONSTANT_PRODUCT
     } else {
-      return MAINNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT
+      return MAINNET_APPROVAL_PROGRAM_HIGH_FEE_CONSTANT_PRODUCT
     }
   } else {
-    if (poolType === PoolType.CONSTANT_PRODUCT_30BP_FEE) {
-      return TESTNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT
+    if (poolType === PoolType.CONSTANT_PRODUCT_LOW_FEE) {
+      return TESTNET_APPROVAL_PROGRAM_LOW_FEE_CONSTANT_PRODUCT
     } else {
-      return TESTNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT
+      return TESTNET_APPROVAL_PROGRAM_HIGH_FEE_CONSTANT_PRODUCT
     }
   }
 }
@@ -69,11 +69,19 @@ export function getManagerApplicationId(network : Network) : number {
   return managerApplicationIds[network]
 }
 
-export function getSwapFee(poolType : PoolType) : number {
-  if (poolType === PoolType.CONSTANT_PRODUCT_30BP_FEE) {
-    return 0.003
+export function getSwapFee(network : Network, poolType : PoolType) : number {
+  if (network === Network.MAINNET) {
+    if (poolType === PoolType.CONSTANT_PRODUCT_LOW_FEE) {
+      return 0.0025
+    } else {
+      return 0.0075
+    }
   } else {
-    return 0.01
+    if (poolType === PoolType.CONSTANT_PRODUCT_LOW_FEE) {
+      return 0.003
+    } else {
+      return 0.01
+    }
   }
 }
 

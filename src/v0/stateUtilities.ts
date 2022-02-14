@@ -6,10 +6,10 @@ import {
   POOL_STRINGS
 } from "./config"
 import {
-  MAINNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT_TEXT,
-  MAINNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT_TEXT,
-  TESTNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT_TEXT,
-  TESTNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT_TEXT
+  MAINNET_APPROVAL_PROGRAM_LOW_FEE_CONSTANT_PRODUCT_TEXT,
+  MAINNET_APPROVAL_PROGRAM_HIGH_FEE_CONSTANT_PRODUCT_TEXT,
+  TESTNET_APPROVAL_PROGRAM_LOW_FEE_CONSTANT_PRODUCT_TEXT,
+  TESTNET_APPROVAL_PROGRAM_HIGH_FEE_CONSTANT_PRODUCT_TEXT,
 } from "./approvalPrograms"
 
 /**
@@ -89,20 +89,20 @@ export async function getAccountCreatedPools(algodClient: Algodv2, network: Netw
   let results = {}
   let accountInfo = await algodClient.accountInformation(address).do()
   accountInfo["created-apps"].forEach(app =>{
-    let pool_type = PoolType.CONSTANT_PRODUCT_30BP_FEE
+    let pool_type = PoolType.CONSTANT_PRODUCT_LOW_FEE
     if (network == Network.MAINNET) {
-      if (app["params"]["approval-program"] === MAINNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT_TEXT) {
-        pool_type = PoolType.CONSTANT_PRODUCT_30BP_FEE
-      } else if (app["params"]["approval-program"] === MAINNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT_TEXT) {
-        pool_type = PoolType.CONSTANT_PRODUCT_100BP_FEE
+      if (app["params"]["approval-program"] === MAINNET_APPROVAL_PROGRAM_LOW_FEE_CONSTANT_PRODUCT_TEXT) {
+        pool_type = PoolType.CONSTANT_PRODUCT_LOW_FEE
+      } else if (app["params"]["approval-program"] === MAINNET_APPROVAL_PROGRAM_HIGH_FEE_CONSTANT_PRODUCT_TEXT) {
+        pool_type = PoolType.CONSTANT_PRODUCT_HIGH_FEE
       } else {
         return
       }
     } else {
-      if (app["params"]["approval-program"] === TESTNET_APPROVAL_PROGRAM_30BP_CONSTANT_PRODUCT_TEXT) {
-        pool_type = PoolType.CONSTANT_PRODUCT_30BP_FEE
-      } else if (app["params"]["approval-program"] === TESTNET_APPROVAL_PROGRAM_100BP_CONSTANT_PRODUCT_TEXT) {
-        pool_type = PoolType.CONSTANT_PRODUCT_100BP_FEE
+      if (app["params"]["approval-program"] === TESTNET_APPROVAL_PROGRAM_LOW_FEE_CONSTANT_PRODUCT_TEXT) {
+        pool_type = PoolType.CONSTANT_PRODUCT_LOW_FEE
+      } else if (app["params"]["approval-program"] === TESTNET_APPROVAL_PROGRAM_HIGH_FEE_CONSTANT_PRODUCT_TEXT) {
+        pool_type = PoolType.CONSTANT_PRODUCT_HIGH_FEE
       } else {
         return
       }
