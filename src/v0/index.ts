@@ -7,7 +7,7 @@ import {
 import AlgofiAMMClient from "./algofiAMMClient"
 import Pool from "./pool"
 import {
-  getAccountBalances
+  getAccountBalances,
 } from "./stateUtilities"
 
 // exports
@@ -20,5 +20,5 @@ export {
   AlgofiAMMClient,
   Pool,
   // helpers
-  getAccountBalances,
+  getAccountBalances
 }

@@ -126,7 +126,7 @@ export default class Pool {
     }
     const params = await getParams(this.algod)
 
-    let approval_program = getApprovalProgramByType(this.poolType)
+    let approval_program = getApprovalProgramByType(this.network, this.poolType)
     let clear_state_program = await getClearStateProgram()
 
     const txn0 = algosdk.makeApplicationCreateTxnFromObject({
