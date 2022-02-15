@@ -63,7 +63,7 @@ export function getClearStateProgram() : Uint8Array {
 
 export function getManagerApplicationId(network : Network) : number {
   const managerApplicationIds: EnumDictionary<Network, number> = {
-    [Network.MAINNET] : 12345678,
+    [Network.MAINNET] : 605753404,
     [Network.TESTNET] : 66008735
   }
   return managerApplicationIds[network]
