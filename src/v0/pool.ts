@@ -140,7 +140,7 @@ export default class Pool {
       numGlobalByteSlices: 4,
       extraPages: 3,
       onComplete: OnApplicationComplete.NoOpOC,
-      appArgs: [encodeUint64(this.asset1Id), encodeUint64(this.asset2Id)],
+      appArgs: this.network == Network.MAINNET ? [encodeUint64(this.asset1Id), encodeUint64(this.asset2Id), encodeUint64(this.validatorIndex)] : [encodeUint64(this.asset1Id), encodeUint64(this.asset2Id)],
       accounts: undefined,
       foreignApps: [this.managerApplicationId],
       foreignAssets: undefined,
