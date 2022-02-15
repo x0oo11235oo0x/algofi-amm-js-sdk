@@ -44,23 +44,23 @@ export default class Asset {
     let USDCAssetId = getUSDCAssetId(this.ammClient.network)
     let STBLAssetId = getSTBLAssetId(this.ammClient.network)
     
-    let USDCPool = await this.ammClient.getPool(PoolType.CONSTANT_PRODUCT_30BP_FEE, this.assetId, USDCAssetId)
+    let USDCPool = await this.ammClient.getPool(PoolType.CONSTANT_PRODUCT_LOW_FEE, this.assetId, USDCAssetId)
     if (USDCPool.poolStatus === PoolStatus.ACTIVE) {
       this.price = (await USDCPool.getPoolPrice(this.assetId)) * (10**(this.decimals - USDC_DECIMALS))
       return
     }
     
-    let STBLPool = await this.ammClient.getPool(PoolType.CONSTANT_PRODUCT_30BP_FEE, this.assetId, STBLAssetId)
+    let STBLPool = await this.ammClient.getPool(PoolType.CONSTANT_PRODUCT_LOW_FEE, this.assetId, STBLAssetId)
     if (STBLPool.poolStatus === PoolStatus.ACTIVE) {
       this.price = (await STBLPool.getPoolPrice(this.assetId)) * (10**(this.decimals - STBL_DECIMALS))
       return
     }
     
-    let ALGOPool = await this.ammClient.getPool(PoolType.CONSTANT_PRODUCT_30BP_FEE, this.assetId, ALGO_ASSET_ID)
+    let ALGOPool = await this.ammClient.getPool(PoolType.CONSTANT_PRODUCT_LOW_FEE, this.assetId, ALGO_ASSET_ID)
     if (ALGOPool.poolStatus === PoolStatus.ACTIVE) {
       let priceInAlgo = (await ALGOPool.getPoolPrice(this.assetId)) * (10**(this.decimals - ALGO_DECIMALS))
       
-      let USDCALGOPool = await this.ammClient.getPool(PoolType.CONSTANT_PRODUCT_30BP_FEE, USDCAssetId, ALGO_ASSET_ID)
+      let USDCALGOPool = await this.ammClient.getPool(PoolType.CONSTANT_PRODUCT_LOW_FEE, USDCAssetId, ALGO_ASSET_ID)
       if(USDCALGOPool.poolStatus === PoolStatus.ACTIVE) {
         this.price = priceInAlgo * (await USDCALGOPool.getPoolPrice(ALGO_ASSET_ID))
       }

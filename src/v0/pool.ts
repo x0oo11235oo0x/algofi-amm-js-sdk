@@ -60,7 +60,7 @@ export default class Pool {
     this.logicSig = new LogicSigAccount(
       generateLogicSig(asset1Id, asset2Id, this.managerApplicationId, this.validatorIndex)
     )
-    this.swapFee = getSwapFee(this.poolType)
+    this.swapFee = getSwapFee(this.network, this.poolType)
   }
 
   async loadState(): Promise<PoolStatus> {
@@ -158,10 +158,10 @@ export default class Pool {
     const enc = new TextEncoder()
 
     // fund manager
-    const txn0 = getPaymentTxn(params, sender, getApplicationAddress(this.managerApplicationId), 1, 500000)
+    const txn0 = getPaymentTxn(params, sender, getApplicationAddress(this.managerApplicationId), 1, this.network === Network.MAINNET ? 400000 : 500000)
 
     // fund logic sig
-    const txn1 = getPaymentTxn(params, sender, this.logicSig.address(), 1, 835000)
+    const txn1 = getPaymentTxn(params, sender, this.logicSig.address(), 1, this.network === Network.MAINNET ? 450000 : 835000)
 
     // opt logic sig into manager
     params.fee = 2000
