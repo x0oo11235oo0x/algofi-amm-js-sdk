@@ -20,6 +20,7 @@ export enum Network {
 export enum PoolType {
   CONSTANT_PRODUCT_LOW_FEE = 0,
   CONSTANT_PRODUCT_HIGH_FEE = 1,
+  NANOSWAP = 2
 }
 
 export enum PoolStatus {
@@ -36,8 +37,10 @@ type EnumDictionary<T extends string | symbol | number, U> = {
 export function getValidatorIndex(network : Network, poolType : PoolType) : number {
   if (poolType === PoolType.CONSTANT_PRODUCT_LOW_FEE) {
     return 0
-  } else {
+  } else if (poolType === PoolType.CONSTANT_PRODUCT_HIGH_FEE) {
     return 1
+  } else {
+    return -1
   }
 }
 
@@ -73,8 +76,10 @@ export function getSwapFee(network : Network, poolType : PoolType) : number {
   if (network === Network.MAINNET) {
     if (poolType === PoolType.CONSTANT_PRODUCT_LOW_FEE) {
       return 0.0025
-    } else {
+    } else if ((poolType === PoolType.CONSTANT_PRODUCT_HIGH_FEE)) {
       return 0.0075
+    } else {
+        return 0.0001 // NANOSWAP
     }
   } else {
     if (poolType === PoolType.CONSTANT_PRODUCT_LOW_FEE) {
@@ -133,7 +138,10 @@ export const POOL_STRINGS = {
     max_flash_loan_ratio : "mflr",
     reserve_factor : "rf",
     initialized : "i",
-    amplification_factor : "af",
+    initial_amplification_factor : "iaf",
+    future_amplification_factor : "faf",
+    initial_amplification_factor_time : "iat",
+    future_amplification_factor_time : "fat",
     
     // APPLICATION CALLS
     

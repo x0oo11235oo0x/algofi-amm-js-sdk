@@ -23,7 +23,9 @@
     "prepublishOnly": "tsdx build"
   },
   "dependencies": {
-    "algosdk": "1.13.1"
+    "algosdk": "1.13.1",
+    "tsc": "^2.0.4",
+    "typescript": "^3.9.10"
   },
   "devDependencies": {
     "@types/jest": "^24.0.25",

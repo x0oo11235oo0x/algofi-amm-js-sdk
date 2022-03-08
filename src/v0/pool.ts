@@ -26,7 +26,14 @@ import {
   MANAGER_STRINGS
 } from "./config"
 
+import {
+  getD,
+  getY
+} from "./stableswapMath"
+
 // interface
+
+const nanoswap_pools = {} // (asset1Id, asset2Id) -> poolApplicationID
 
 export default class Pool {
   public algod: Algodv2
@@ -45,10 +52,15 @@ export default class Pool {
   public asset2Balance: number
   public lpCirculation: number
   public swapFee: number
+  private initialAmplificationFactor: number
+  private initialAmplificationFactorTime: number
+  private futureAmplificationFactor: number
+  private futureAmplificationFactorTime: number
+  private t: number
 
   constructor(algod: Algodv2, network: Network, poolType: PoolType, asset1Id: number, asset2Id: number) {
     if (asset1Id >= asset2Id) {
-      throw new Error("Invalid asset ordering. Assert 1 must be less than Asset 2")
+      throw new Error("Invalid asset ordering. Asset 1 must be less than Asset 2")
     }
     this.algod = algod
     this.network = network
@@ -56,38 +68,47 @@ export default class Pool {
     this.asset1Id = asset1Id
     this.asset2Id = asset2Id
     this.managerApplicationId = getManagerApplicationId(network)
-    this.validatorIndex = getValidatorIndex(network, this.poolType)
-    this.logicSig = new LogicSigAccount(
-      generateLogicSig(asset1Id, asset2Id, this.managerApplicationId, this.validatorIndex)
-    )
     this.swapFee = getSwapFee(this.network, this.poolType)
+    this.validatorIndex = getValidatorIndex(network, this.poolType)
+
+    if (poolType != PoolType.NANOSWAP) {
+        this.logicSig = new LogicSigAccount(
+          generateLogicSig(asset1Id, asset2Id, this.managerApplicationId, this.validatorIndex)
+        )
+    }
   }
 
   async loadState(): Promise<PoolStatus> {
     // get logic sig state
-    let logicSigLocalState = await getApplicationLocalState(
-      this.algod,
-      this.logicSig.address(),
-      this.managerApplicationId
-    )
+    if (this.poolType != PoolType.NANOSWAP) {
+        let logicSigLocalState = await getApplicationLocalState(
+          this.algod,
+          this.logicSig.address(),
+          this.managerApplicationId
+        )
 
-    // pool is uninitialized
-    if (Object.keys(logicSigLocalState).length === 0) {
-      this.poolStatus = PoolStatus.UNINITIALIZED
-      return this.poolStatus
+        // pool is uninitialized
+        if (Object.keys(logicSigLocalState).length === 0) {
+          this.poolStatus = PoolStatus.UNINITIALIZED
+          return this.poolStatus
+        } else {
+          this.poolStatus = PoolStatus.ACTIVE
+        }
+
+        if (
+          logicSigLocalState[MANAGER_STRINGS.registered_asset_1_id] !== this.asset1Id ||
+          logicSigLocalState[MANAGER_STRINGS.registered_asset_2_id] !== this.asset2Id ||
+          logicSigLocalState[MANAGER_STRINGS.validator_index] !== this.validatorIndex
+        ) {
+          throw new Error("Logic sig state does not match expected")
+        }
+
+        this.applicationId = logicSigLocalState[MANAGER_STRINGS.registered_pool_id]
     } else {
-      this.poolStatus = PoolStatus.ACTIVE
+        this.poolStatus = PoolStatus.ACTIVE
+        this.applicationId = nanoswap_pools[(this.asset1Id, this.asset2Id)]
     }
 
-    if (
-      logicSigLocalState[MANAGER_STRINGS.registered_asset_1_id] !== this.asset1Id ||
-      logicSigLocalState[MANAGER_STRINGS.registered_asset_2_id] !== this.asset2Id ||
-      logicSigLocalState[MANAGER_STRINGS.validator_index] !== this.validatorIndex
-    ) {
-      throw new Error("Logic sig state does not match expected")
-    }
-
-    this.applicationId = logicSigLocalState[MANAGER_STRINGS.registered_pool_id]
     this.address = getApplicationAddress(this.applicationId)
 
     // load pool state
@@ -96,6 +117,15 @@ export default class Pool {
     this.asset2Balance = poolState[POOL_STRINGS.balance_2]
     this.lpAssetId = poolState[POOL_STRINGS.lp_id]
     this.lpCirculation = poolState[POOL_STRINGS.lp_circulation]
+
+    this.initialAmplificationFactor = poolState[POOL_STRINGS.initial_amplification_factor]
+    this.futureAmplificationFactor = poolState[POOL_STRINGS.future_amplification_factor]
+    this.initialAmplificationFactorTime = poolState[POOL_STRINGS.initial_amplification_factor_time]
+    this.futureAmplificationFactorTime = poolState[POOL_STRINGS.future_amplification_factor_time]
+    let status = this.algod.status()
+    let lastRound = status["last-round"]
+    let blockInfo = await this.algod.statusAfterBlock(lastRound)
+    this.t = blockInfo["block"]["ts"]
 
     return this.poolStatus
   }
@@ -124,6 +154,11 @@ export default class Pool {
     if (this.poolStatus === PoolStatus.ACTIVE) {
       throw new Error("Pool already active cannot generate create pool txn")
     }
+
+    if (this.poolType === PoolType.NANOSWAP) {
+      throw new Error("Nanoswap pool cannot generate create pool txn")
+    }
+
     const params = await getParams(this.algod)
 
     let approval_program = getApprovalProgramByType(this.network, this.poolType)
@@ -416,12 +451,15 @@ export default class Pool {
   // pool quote
   async getEmptyPoolQuote(asset1PooledAmount: number, asset2PooledAmount: number) {
     let lpsIssued = 0
-    if (asset1PooledAmount * asset2PooledAmount > 2 ** 64 - 1) {
-      lpsIssued = Math.sqrt(asset1PooledAmount) * Math.sqrt(asset2PooledAmount)
+    let numIter = 0
+    if (this.poolType === PoolType.NANOSWAP) {
+       [lpsIssued, numIter] = getD([asset1PooledAmount, asset2PooledAmount], this.getAmplificationFactor())
+    } else if (asset1PooledAmount * asset2PooledAmount > 2 ** 64 - 1) {
+      [lpsIssued, numIter] = [Math.sqrt(asset1PooledAmount) * Math.sqrt(asset2PooledAmount), 0]
     } else {
-      lpsIssued = Math.sqrt(asset1PooledAmount * asset2PooledAmount)
+      [lpsIssued, numIter]  = [Math.sqrt(asset1PooledAmount * asset2PooledAmount), 0]
     }
-    return new BalanceDelta(this, -1 * asset1PooledAmount, -1 * asset2PooledAmount, lpsIssued)
+    return new BalanceDelta(this, -1 * asset1PooledAmount, -1 * asset2PooledAmount, Number(lpsIssued), numIter)
   }
 
   getPoolQuote(assetId: number, assetAmount: number, whatIfDelta1: number = 0, whatIfDelta2: number = 0) {
@@ -431,6 +469,8 @@ export default class Pool {
 
     let asset1PooledAmount = 0
     let asset2PooledAmount = 0
+    let lpsIssued = 0
+    let numIter = 0
 
     if (assetId === this.asset1Id) {
       asset1PooledAmount = assetAmount
@@ -443,9 +483,17 @@ export default class Pool {
         (asset2PooledAmount * (this.asset1Balance + whatIfDelta1)) / (this.asset2Balance + whatIfDelta2)
       )
     }
-    let lpsIssued = Math.floor((asset1PooledAmount * this.lpCirculation) / (this.asset1Balance + whatIfDelta1))
 
-    return new BalanceDelta(this, -1 * asset1PooledAmount, -1 * asset2PooledAmount, lpsIssued)
+    if (this.poolType === PoolType.NANOSWAP) {
+      let [D0, numIterD0] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
+      let [D1, numIterD1] = getD([asset1PooledAmount + this.asset1Balance, asset2PooledAmount + this.asset2Balance], this.getAmplificationFactor())
+      lpsIssued = Math.floor(this.lpCirculation * Number((D1 - D0) / D0))
+      numIter = numIterD0 + numIterD1
+    } else {
+      lpsIssued = Math.floor((asset1PooledAmount * this.lpCirculation) / (this.asset1Balance + whatIfDelta1))
+    }
+
+    return new BalanceDelta(this, -1 * asset1PooledAmount, -1 * asset2PooledAmount, lpsIssued, numIter)
   }
 
   // burn quote
@@ -461,7 +509,7 @@ export default class Pool {
     let asset1Amount = Math.floor((lpAmount * this.asset1Balance) / this.lpCirculation)
     let asset2Amount = Math.floor((lpAmount * this.asset2Balance) / this.lpCirculation)
 
-    return new BalanceDelta(this, asset1Amount, asset2Amount, -1 * lpAmount)
+    return new BalanceDelta(this, asset1Amount, asset2Amount, -1 * lpAmount, 0)
   }
 
   // swap_exact_for quote
@@ -471,17 +519,32 @@ export default class Pool {
     }
 
     let swapInAmountLessFees = swapInAmount - Math.ceil(swapInAmount * this.swapFee)
-
+    let swapOutAmount = 0
+    let numIter = 0
     if (swapInAssetId === this.asset1Id) {
-      let swapOutAmount = Math.floor(
-        (this.asset2Balance * swapInAmountLessFees) / (this.asset1Balance + swapInAmountLessFees)
-      )
-      return new BalanceDelta(this, -1 * swapInAmount, swapOutAmount, 0)
+       if (this.poolType === PoolType.NANOSWAP) {
+         let [D, numIterD] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
+         let [y, numIterY] = getY(0, 1, this.asset1Balance + swapInAmountLessFees, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
+         swapOutAmount = this.asset2Balance - Number(y)
+         numIter = numIterD + numIterY
+       } else {
+         swapOutAmount = Math.floor(
+            (this.asset2Balance * swapInAmountLessFees) / (this.asset1Balance + swapInAmountLessFees)
+         )
+       }
+      return new BalanceDelta(this, -1 * swapInAmount, swapOutAmount, 0, numIter)
     } else {
-      let swapOutAmount = Math.floor(
-        (this.asset1Balance * swapInAmountLessFees) / (this.asset2Balance + swapInAmountLessFees)
-      )
-      return new BalanceDelta(this, swapOutAmount, -1 * swapInAmount, 0)
+      if (this.poolType === PoolType.NANOSWAP) {
+       let [D, numIterD] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
+       let [y, numIterY] = getY(1, 0, this.asset2Balance + swapInAmountLessFees, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
+       swapOutAmount = this.asset1Balance - y
+       numIter = numIterD + numIterY
+      } else {
+        swapOutAmount = Math.floor(
+          (this.asset1Balance * swapInAmountLessFees) / (this.asset2Balance + swapInAmountLessFees)
+        )
+      }
+      return new BalanceDelta(this, swapOutAmount, -1 * swapInAmount, 0, numIter)
     }
   }
 
@@ -492,18 +555,43 @@ export default class Pool {
     }
 
     let swapInAmountLessFees = 0
+    let numIter = 0
     if (swapOutAssetId === this.asset1Id) {
-      swapInAmountLessFees = Math.floor((this.asset2Balance * swapOutAmount) / (this.asset1Balance - swapOutAmount)) - 1
+      if (this.poolType === PoolType.NANOSWAP) {
+       let [D, numIterD] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
+       let [y, numIterY] = getY(0, 1, this.asset1Balance - swapInAmountLessFees, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
+       swapInAmountLessFees = Number(y) - this.asset1Balance
+       numIter = numIterD + numIterY
+      } else {
+        swapInAmountLessFees = Math.floor((this.asset2Balance * swapOutAmount) / (this.asset1Balance - swapOutAmount)) - 1
+      }
     } else {
-      swapInAmountLessFees = Math.floor((this.asset1Balance * swapOutAmount) / (this.asset2Balance - swapOutAmount)) - 1
+      if (this.poolType === PoolType.NANOSWAP) {
+       let [D, numIterD] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
+       let [y, numIterY] = getY(1, 0, this.asset2Balance - swapInAmountLessFees, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
+       swapInAmountLessFees = Number(y) - this.asset2Balance
+       numIter = numIterD + numIterY
+      } else {
+        swapInAmountLessFees = Math.floor((this.asset1Balance * swapOutAmount) / (this.asset2Balance - swapOutAmount)) - 1
+      }
     }
 
     let swapInAmount = Math.ceil(swapInAmountLessFees / (1 - this.swapFee))
 
     if (swapOutAssetId === this.asset1Id) {
-      return new BalanceDelta(this, swapOutAmount, -1 * swapInAmount, 0)
+      return new BalanceDelta(this, swapOutAmount, -1 * swapInAmount, 0, numIter)
     } else {
-      return new BalanceDelta(this, -1 * swapInAmount, swapOutAmount, 0)
+      return new BalanceDelta(this, -1 * swapInAmount, swapOutAmount, 0, numIter)
     }
+  }
+
+  getAmplificationFactor(): number {
+    if (this.t < this.futureAmplificationFactorTime) {
+        return Math.floor(this.initialAmplificationFactor +
+               (this.futureAmplificationFactor - this.initialAmplificationFactor) * (this.t - this.initialAmplificationFactor)
+               / (this.futureAmplificationFactorTime- this.initialAmplificationFactorTime))
+    }
+
+    return this.futureAmplificationFactor
   }
 }
