@@ -33,7 +33,8 @@ import {
 
 // interface
 
-const nanoswap_pools = {77279127: {77279142: 77282939}} // (asset1Id, asset2Id) -> poolApplicationID
+const testnetNanoswapPools = {77279127: {77279142: 77282939}} // (asset1Id, asset2Id) -> poolApplicationID
+const mainnetNanoswapPools = {31566704: {465865291: 658337046}}
 
 export default class Pool {
   public algod: Algodv2
@@ -106,7 +107,11 @@ export default class Pool {
         this.applicationId = logicSigLocalState[MANAGER_STRINGS.registered_pool_id]
     } else {
         this.poolStatus = PoolStatus.ACTIVE
-        this.applicationId = nanoswap_pools[this.asset1Id][this.asset2Id]
+        if (this.network == Network.MAINNET){
+          this.applicationId = mainnetNanoswapPools[this.asset1Id][this.asset2Id]
+        } else {
+          this.applicationId = testnetNanoswapPools[this.asset1Id][this.asset2Id]
+        }
     }
 
     this.address = getApplicationAddress(this.applicationId)

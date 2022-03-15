@@ -71,7 +71,7 @@ export function getManagerApplicationId(network : Network, poolType: PoolType) :
   }
   
   const nanoManagerApplicationIds: EnumDictionary<Network, number> = {
-    [Network.MAINNET] : 605753404,
+    [Network.MAINNET] : 658336870,
     [Network.TESTNET] : 77282916
   }
   
