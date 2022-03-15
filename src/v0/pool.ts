@@ -128,7 +128,7 @@ export default class Pool {
     this.initialAmplificationFactorTime = poolState[POOL_STRINGS.initial_amplification_factor_time]
     this.futureAmplificationFactorTime = poolState[POOL_STRINGS.future_amplification_factor_time]
     let status = await this.algod.status().do()
-    let lastRound = status["last-round"]
+    let lastRound = status["last-round"] - 1
     let blockInfo = await this.algod.block(lastRound).do()
     this.t = blockInfo["block"]["ts"]
 
