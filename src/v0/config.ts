@@ -64,11 +64,21 @@ export function getClearStateProgram() : Uint8Array {
   return CLEAR_STATE_PROGRAM
 }
 
-export function getManagerApplicationId(network : Network) : number {
+export function getManagerApplicationId(network : Network, poolType: PoolType) : number {
   const managerApplicationIds: EnumDictionary<Network, number> = {
     [Network.MAINNET] : 605753404,
     [Network.TESTNET] : 66008735
   }
+  
+  const nanoManagerApplicationIds: EnumDictionary<Network, number> = {
+    [Network.MAINNET] : 605753404,
+    [Network.TESTNET] : 77282916
+  }
+  
+  if (poolType == PoolType.NANOSWAP) {
+    return nanoManagerApplicationIds[network]
+  }
+  
   return managerApplicationIds[network]
 }
 
@@ -79,13 +89,15 @@ export function getSwapFee(network : Network, poolType : PoolType) : number {
     } else if ((poolType === PoolType.CONSTANT_PRODUCT_HIGH_FEE)) {
       return 0.0075
     } else {
-        return 0.0001 // NANOSWAP
+        return 0.001 // NANOSWAP
     }
   } else {
     if (poolType === PoolType.CONSTANT_PRODUCT_LOW_FEE) {
       return 0.003
-    } else {
+    } else if ((poolType === PoolType.CONSTANT_PRODUCT_HIGH_FEE)) {
       return 0.01
+    } else {
+      return 0.001
     }
   }
 }
@@ -142,6 +154,12 @@ export const POOL_STRINGS = {
     future_amplification_factor : "faf",
     initial_amplification_factor_time : "iat",
     future_amplification_factor_time : "fat",
+    ramp_amplification_factor : "raf",
+    update_swap_fee : "usf",
+    schedule_swap_fee_update : "ssf",
+    swap_fee_pct_scaled : "sfp",
+    next_swap_fee_pct_scaled : "nsfp",
+    swap_fee_update_time : "sft",
     
     // APPLICATION CALLS
     

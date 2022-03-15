@@ -33,7 +33,7 @@ import {
 
 // interface
 
-const nanoswap_pools = {} // (asset1Id, asset2Id) -> poolApplicationID
+const nanoswap_pools = {77279127: {77279142: 77282939}} // (asset1Id, asset2Id) -> poolApplicationID
 
 export default class Pool {
   public algod: Algodv2
@@ -67,7 +67,7 @@ export default class Pool {
     this.poolType = poolType
     this.asset1Id = asset1Id
     this.asset2Id = asset2Id
-    this.managerApplicationId = getManagerApplicationId(network)
+    this.managerApplicationId = getManagerApplicationId(network, poolType)
     this.swapFee = getSwapFee(this.network, this.poolType)
     this.validatorIndex = getValidatorIndex(network, this.poolType)
 
@@ -106,7 +106,7 @@ export default class Pool {
         this.applicationId = logicSigLocalState[MANAGER_STRINGS.registered_pool_id]
     } else {
         this.poolStatus = PoolStatus.ACTIVE
-        this.applicationId = nanoswap_pools[(this.asset1Id, this.asset2Id)]
+        this.applicationId = nanoswap_pools[this.asset1Id][this.asset2Id]
     }
 
     this.address = getApplicationAddress(this.applicationId)
@@ -122,9 +122,9 @@ export default class Pool {
     this.futureAmplificationFactor = poolState[POOL_STRINGS.future_amplification_factor]
     this.initialAmplificationFactorTime = poolState[POOL_STRINGS.initial_amplification_factor_time]
     this.futureAmplificationFactorTime = poolState[POOL_STRINGS.future_amplification_factor_time]
-    let status = this.algod.status()
+    let status = await this.algod.status().do()
     let lastRound = status["last-round"]
-    let blockInfo = await this.algod.statusAfterBlock(lastRound)
+    let blockInfo = await this.algod.block(lastRound).do()
     this.t = blockInfo["block"]["ts"]
 
     return this.poolStatus
@@ -238,7 +238,8 @@ export default class Pool {
     asset2Amount: number,
     maximumSlippage: number,
     doOptIn: boolean = true,
-    assignGroup: boolean = true
+    assignGroup: boolean = true,
+    fee: number = 3000
   ): Promise<Transaction[]> {
     const params = await getParams(this.algod)
     const enc = new TextEncoder()
@@ -253,7 +254,7 @@ export default class Pool {
     const txn2 = getPaymentTxn(params, sender, this.address, this.asset2Id, asset2Amount)
 
     // pool
-    params.fee = 3000
+    params.fee = fee
     const txn3 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: this.applicationId,
@@ -336,7 +337,8 @@ export default class Pool {
     swapInAmount: number,
     minAmountToReceive: number,
     doOptIn: boolean = false,
-    assignGroup: boolean = true
+    assignGroup: boolean = true,
+    fee: number = 2000
   ): Promise<Transaction[]> {
     const params = await getParams(this.algod)
     const enc = new TextEncoder()
@@ -349,7 +351,7 @@ export default class Pool {
     const txn1 = getPaymentTxn(params, sender, this.address, swapInAsset, swapInAmount)
 
     // swap exact for
-    params.fee = 2000
+    params.fee = fee
     const txn2 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: this.applicationId,
@@ -370,7 +372,8 @@ export default class Pool {
     swapInAmount: number,
     amountToReceive: number,
     doOptIn: boolean = false,
-    assignGroup: boolean = true
+    assignGroup: boolean = true,
+    fee: number = 2000
   ): Promise<Transaction[]> {
     const params = await getParams(this.algod)
     const enc = new TextEncoder()
@@ -381,7 +384,7 @@ export default class Pool {
     const txn1 = getPaymentTxn(params, sender, this.address, swapInAsset, swapInAmount)
 
     // swap for exact
-    params.fee = 2000
+    params.fee = fee
     const txn2 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: this.applicationId,
