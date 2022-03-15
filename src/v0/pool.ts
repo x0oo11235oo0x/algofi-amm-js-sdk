@@ -567,8 +567,8 @@ export default class Pool {
     if (swapOutAssetId === this.asset1Id) {
       if (this.poolType === PoolType.NANOSWAP) {
        let [D, numIterD] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
-       let [y, numIterY] = getY(0, 1, this.asset1Balance - swapInAmountLessFees, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
-       swapInAmountLessFees = Number(y) - this.asset1Balance
+       let [y, numIterY] = getY(1, 0, this.asset1Balance - swapOutAmount, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
+       swapInAmountLessFees = this.asset2Balance - y
        numIter = numIterD + numIterY
       } else {
         swapInAmountLessFees = Math.floor((this.asset2Balance * swapOutAmount) / (this.asset1Balance - swapOutAmount)) - 1
@@ -576,8 +576,8 @@ export default class Pool {
     } else {
       if (this.poolType === PoolType.NANOSWAP) {
        let [D, numIterD] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
-       let [y, numIterY] = getY(1, 0, this.asset2Balance - swapInAmountLessFees, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
-       swapInAmountLessFees = Number(y) - this.asset2Balance
+       let [y, numIterY] = getY(0, 1, this.asset2Balance - swapOutAmount, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
+       swapInAmountLessFees = this.asset1Balance - y
        numIter = numIterD + numIterY
       } else {
         swapInAmountLessFees = Math.floor((this.asset1Balance * swapOutAmount) / (this.asset2Balance - swapOutAmount)) - 1
