@@ -1,6 +1,6 @@
 {
   "name": "@algofi/amm-v0",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "The official JavaScript SDK for the Algofi AMM",
   "main": "dist/index.js",
   "files": [
