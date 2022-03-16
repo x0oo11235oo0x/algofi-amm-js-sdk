@@ -34,7 +34,13 @@ import {
 // interface
 
 const testnetNanoswapPools = {77279127: {77279142: 77282939}} // (asset1Id, asset2Id) -> poolApplicationID
-const mainnetNanoswapPools = {31566704: {465865291: 658337046}}
+const mainnetNanoswapPools = {
+  31566704: {465865291: 658337046},
+  312769: {
+    465865291: 659677335,
+    31566704: 659678644, 
+  }
+}
 
 export default class Pool {
   public algod: Algodv2
@@ -568,7 +574,7 @@ export default class Pool {
       if (this.poolType === PoolType.NANOSWAP) {
        let [D, numIterD] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
        let [y, numIterY] = getY(1, 0, this.asset1Balance - swapOutAmount, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
-       swapInAmountLessFees = this.asset2Balance - y
+       swapInAmountLessFees = y - this.asset2Balance
        numIter = numIterD + numIterY
       } else {
         swapInAmountLessFees = Math.floor((this.asset2Balance * swapOutAmount) / (this.asset1Balance - swapOutAmount)) - 1
@@ -577,7 +583,7 @@ export default class Pool {
       if (this.poolType === PoolType.NANOSWAP) {
        let [D, numIterD] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
        let [y, numIterY] = getY(0, 1, this.asset2Balance - swapOutAmount, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
-       swapInAmountLessFees = this.asset1Balance - y
+       swapInAmountLessFees = y - this.asset1Balance 
        numIter = numIterD + numIterY
       } else {
         swapInAmountLessFees = Math.floor((this.asset1Balance * swapOutAmount) / (this.asset2Balance - swapOutAmount)) - 1
