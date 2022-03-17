@@ -446,7 +446,8 @@ export default class Pool {
       swapInAmount,
       minAmountToReceive,
       doOptIn,
-      false
+      false,
+      2000 + (quote?.extraComputeFee || 0)
     )
 
     const asset1Amount = zapInAsset === this.asset1Id ? zapInAmount - swapInAmount : amountToReceive
