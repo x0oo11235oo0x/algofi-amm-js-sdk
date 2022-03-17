@@ -114,9 +114,9 @@ export default class Pool {
     } else {
         this.poolStatus = PoolStatus.ACTIVE
         if (this.network == Network.MAINNET){
-          this.applicationId = mainnetNanoswapPools[this.asset1Id][this.asset2Id]
+          this.applicationId = mainnetNanoswapPools[Math.min(this.asset1Id, this.asset2Id)][Math.max(this.asset1Id, this.asset2Id)]
         } else {
-          this.applicationId = testnetNanoswapPools[this.asset1Id][this.asset2Id]
+          this.applicationId = testnetNanoswapPools[Math.min(this.asset1Id, this.asset2Id)][Math.max(this.asset1Id, this.asset2Id)]
         }
     }
 
@@ -446,7 +446,8 @@ export default class Pool {
       swapInAmount,
       minAmountToReceive,
       doOptIn,
-      false
+      false,
+      2000 + (quote?.extraComputeFee || 0)
     )
 
     const asset1Amount = zapInAsset === this.asset1Id ? zapInAmount - swapInAmount : amountToReceive
