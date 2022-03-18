@@ -272,18 +272,19 @@ export default class Pool {
       appArgs: [enc.encode(POOL_STRINGS.pool), encodeUint64(maximumSlippage)],
       suggestedParams: params,
       accounts: undefined,
-      foreignApps: undefined,
+      foreignApps: [this.managerApplicationId],
       foreignAssets: [this.lpAssetId],
       rekeyTo: undefined
     })
-
+    
+    let params2 = await getParams(this.algod)
     // redeem asset1 residual
-    params.fee = 1000
+    params2.fee = 1000
     const txn4 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: this.applicationId,
       appArgs: [enc.encode(POOL_STRINGS.redeem_pool_asset1_residual)],
-      suggestedParams: params,
+      suggestedParams: params2,
       accounts: undefined,
       foreignApps: undefined,
       foreignAssets: [this.asset1Id],
@@ -291,12 +292,13 @@ export default class Pool {
     })
 
     // redeem asset2 residual
-    params.fee = 1000
+    let params3 = await getParams(this.algod)
+    params3.fee = 1000
     const txn5 = algosdk.makeApplicationNoOpTxnFromObject({
       from: sender,
       appIndex: this.applicationId,
       appArgs: [enc.encode("rpa2r")],
-      suggestedParams: params,
+      suggestedParams: params3,
       accounts: undefined,
       foreignApps: undefined,
       foreignAssets: [this.asset2Id],
