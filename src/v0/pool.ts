@@ -272,7 +272,7 @@ export default class Pool {
       appArgs: [enc.encode(POOL_STRINGS.pool), encodeUint64(maximumSlippage)],
       suggestedParams: params,
       accounts: undefined,
-      foreignApps: undefined,
+      foreignApps: [this.managerApplicationId],
       foreignAssets: [this.lpAssetId],
       rekeyTo: undefined
     })
