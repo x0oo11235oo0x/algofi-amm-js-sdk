@@ -7,7 +7,6 @@ import algosdk, {
   encodeUint64,
   OnApplicationComplete
 } from "algosdk"
-
 // internal imports
 import { getApplicationGlobalState, getApplicationLocalState, getAccountBalances } from "./stateUtilities"
 import { getParams, getPaymentTxn } from "./transactionUtilities"
@@ -462,7 +461,83 @@ export default class Pool {
 
     return assignGroup ? algosdk.assignGroupID(txns) : txns
   }
+  
+  async getNanoZapTransactions(
+    sender: string,
+    asset1InputAmount: number,
+    asset2InputAmount: number,
+    maximumSlippageSwap: number,
+    doOptIn: boolean = false,
+    doOptInLP: boolean = false,
+    assignGroup: boolean = true,
+    maximumSlippageLP: number = 10000
+  ): Promise<Transaction[]> {
+    let tradeQuote: BalanceDelta
+    let txns = []
+    
+    
+    if (asset1InputAmount === 0 && asset2InputAmount === 0) {
+      return []
+    }
 
+    
+    if (asset2InputAmount === 0 || asset1InputAmount / asset2InputAmount > this.asset1Balance / this.asset2Balance) {
+      let objective = function (dx) {
+        let dy =  this.getSwapExactForQuote(this.asset1Id, dx).asset2Delta
+        return this.asset1Balance * asset2InputAmount - 
+        this.asset2Balance * asset1InputAmount +
+        (this.asset1Balance + asset1InputAmount) * dy +
+        (this.asset2Balance + asset2InputAmount) * dx
+      }.bind(this)
+      let tradeAmt = this.binarySearch(0, asset1InputAmount, objective)
+      tradeQuote = this.getSwapExactForQuote(this.asset1Id, tradeAmt)
+      
+      const swapExactForTxns = await this.getSwapExactForTxns(
+        sender,
+        this.asset1Id,
+        -tradeQuote.asset1Delta,
+        Math.round(tradeQuote.asset2Delta * (1e6 - maximumSlippageSwap) / 1e6),
+        doOptIn,
+        false,
+        2000 + (tradeQuote?.extraComputeFee || 0))
+      swapExactForTxns.forEach(txn => txns.push(txn))
+    }
+    
+    if (asset1InputAmount === 0 || asset1InputAmount / asset2InputAmount < this.asset1Balance / this.asset2Balance) {
+      let objective = function (dy) {
+        let dx =  this.getSwapExactForQuote(this.asset2Id, dy).asset1Delta
+        return this.asset2Balance * asset1InputAmount - 
+        this.asset1Balance * asset2InputAmount + 
+        (this.asset1Balance + asset1InputAmount) * dy +
+        (this.asset2Balance + asset2InputAmount) * dx
+        }.bind(this)
+      let tradeAmt = this.binarySearch(0, asset2InputAmount, objective)
+      tradeQuote = this.getSwapExactForQuote(this.asset2Id, tradeAmt)
+      const swapExactForTxns = await this.getSwapExactForTxns(
+        sender,
+        this.asset2Id,
+        -tradeQuote.asset2Delta,
+        Math.round(tradeQuote.asset1Delta * (1e6 - maximumSlippageSwap) / 1e6),
+        doOptIn,
+        false,
+        2000 + (tradeQuote?.extraComputeFee || 0))
+      swapExactForTxns.forEach(txn => txns.push(txn))
+    }
+    
+    this.asset1Balance -= tradeQuote.asset1Delta
+    this.asset2Balance -= tradeQuote.asset2Delta
+    
+    let whatIfDelta1 = asset1InputAmount + tradeQuote.asset1Delta
+    let whatIfDelta2 = asset2InputAmount + tradeQuote.asset2Delta
+    let poolQuote = this.getPoolQuote(this.asset1Id, whatIfDelta1, whatIfDelta2)
+    let poolTxns = await this.getPoolTxns(sender, whatIfDelta1, whatIfDelta2, maximumSlippageLP, doOptInLP, false, 3000 + (poolQuote?.extraComputeFee || 0))
+    poolTxns.forEach(txn => txns.push(txn))
+    
+    // reset state to what it was
+    await this.loadState()
+    return assignGroup ? algosdk.assignGroupID(txns) : txns
+  }
+  
   // QUOTES
 
   // pool quote
@@ -534,15 +609,19 @@ export default class Pool {
     if (this.lpCirculation === 0) {
       throw new Error("Error: pool is empty")
     }
+    
+    if (swapInAmount === 0) {
+      return new BalanceDelta(this, 0, 0, 0, 0)
+    }
 
-    let swapInAmountLessFees = swapInAmount - Math.ceil(swapInAmount * this.swapFee)
+    let swapInAmountLessFees = swapInAmount - (Math.floor(swapInAmount * this.swapFee) + 1)
     let swapOutAmount = 0
     let numIter = 0
     if (swapInAssetId === this.asset1Id) {
        if (this.poolType === PoolType.NANOSWAP) {
          let [D, numIterD] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
          let [y, numIterY] = getY(0, 1, this.asset1Balance + swapInAmountLessFees, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
-         swapOutAmount = this.asset2Balance - Number(y)
+         swapOutAmount = this.asset2Balance - Number(y) - 1
          numIter = numIterD + numIterY
        } else {
          swapOutAmount = Math.floor(
@@ -554,7 +633,7 @@ export default class Pool {
       if (this.poolType === PoolType.NANOSWAP) {
        let [D, numIterD] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
        let [y, numIterY] = getY(1, 0, this.asset2Balance + swapInAmountLessFees, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
-       swapOutAmount = this.asset1Balance - y
+       swapOutAmount = this.asset1Balance - y - 1
        numIter = numIterD + numIterY
       } else {
         swapOutAmount = Math.floor(
@@ -577,7 +656,7 @@ export default class Pool {
       if (this.poolType === PoolType.NANOSWAP) {
        let [D, numIterD] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
        let [y, numIterY] = getY(1, 0, this.asset1Balance - swapOutAmount, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
-       swapInAmountLessFees = y - this.asset2Balance
+       swapInAmountLessFees = y - this.asset2Balance + 1
        numIter = numIterD + numIterY
       } else {
         swapInAmountLessFees = Math.floor((this.asset2Balance * swapOutAmount) / (this.asset1Balance - swapOutAmount)) - 1
@@ -586,7 +665,7 @@ export default class Pool {
       if (this.poolType === PoolType.NANOSWAP) {
        let [D, numIterD] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
        let [y, numIterY] = getY(0, 1, this.asset2Balance - swapOutAmount, [this.asset1Balance, this.asset2Balance], D, this.getAmplificationFactor())
-       swapInAmountLessFees = y - this.asset1Balance 
+       swapInAmountLessFees = y - this.asset1Balance + 1
        numIter = numIterD + numIterY
       } else {
         swapInAmountLessFees = Math.floor((this.asset1Balance * swapOutAmount) / (this.asset2Balance - swapOutAmount)) - 1
@@ -610,5 +689,62 @@ export default class Pool {
     }
 
     return this.futureAmplificationFactor
+  }
+  
+  binarySearch(lower, upper, objective) {
+    if (lower > upper) return lower
+    let mid = Math.floor(lower + (upper - lower) / 2)
+    let midVal = objective(mid)
+    let upperVal = objective(upper)
+    let lowerVal = objective(lower)
+    
+    if (midVal < 0) {
+      return this.binarySearch(mid+1, upper, objective)
+    } else if (midVal > 0) {
+      return this.binarySearch(lower, mid-1, objective)
+    } else {
+      return mid
+    }
+  }
+  
+  async getNanoZapQuote(asset1InputAmount: number, asset2InputAmount: number) {
+    if (asset1InputAmount === 0 && asset2InputAmount === 0) {
+      return this.getPoolQuote(this.asset1Id, 0,0)
+    }
+    let tradeQuote: BalanceDelta
+    let txns = []
+    
+    if (asset2InputAmount === 0 || asset1InputAmount / asset2InputAmount > this.asset1Balance / this.asset2Balance) {
+      let objective = function (dx) {
+        let dy =  this.getSwapExactForQuote(this.asset1Id, dx).asset2Delta
+        return this.asset1Balance * asset2InputAmount - 
+        this.asset2Balance * asset1InputAmount +
+        (this.asset1Balance + asset1InputAmount) * dy +
+        (this.asset2Balance + asset2InputAmount) * dx
+      }.bind(this)
+      let tradeAmt = this.binarySearch(0, asset1InputAmount, objective)
+      tradeQuote = this.getSwapExactForQuote(this.asset1Id, tradeAmt)
+    }
+    if (asset1InputAmount === 0 || asset1InputAmount / asset2InputAmount < this.asset1Balance / this.asset2Balance) {
+      let objective = function (dy) {
+        let dx =  this.getSwapExactForQuote(this.asset2Id, dy).asset1Delta
+        return this.asset2Balance * asset1InputAmount - 
+        this.asset1Balance * asset2InputAmount + 
+        (this.asset1Balance + asset1InputAmount) * dy +
+        (this.asset2Balance + asset2InputAmount) * dx
+        }.bind(this)
+      let tradeAmt = this.binarySearch(0, asset2InputAmount, objective)
+      tradeQuote = this.getSwapExactForQuote(this.asset2Id, tradeAmt)
+    }
+    
+    this.asset1Balance -= tradeQuote.asset1Delta
+    this.asset2Balance -= tradeQuote.asset2Delta
+    
+    let whatIfDelta1 = asset1InputAmount + tradeQuote.asset1Delta
+    let whatIfDelta2 = asset2InputAmount + tradeQuote.asset2Delta
+    let poolQuote = this.getPoolQuote(this.asset1Id, whatIfDelta1, whatIfDelta2)
+    // reset state to what it's supposed to be
+    await this.loadState()
+    return poolQuote
   }
 }
