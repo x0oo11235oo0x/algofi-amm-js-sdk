@@ -20,7 +20,7 @@ export default class BalanceDelta {
     this.asset1Delta = asset1Delta
     this.asset2Delta = asset2Delta
     this.lpDelta = lpDelta
-    this.extraComputeFee = numIter * 1000
+    this.extraComputeFee = numIter / (700 / 400) * 1000
 
     // calculate price delta
     if (lpDelta === 0) {
