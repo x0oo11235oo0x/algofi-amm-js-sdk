@@ -542,6 +542,95 @@ export default class Pool {
     return assignGroup ? algosdk.assignGroupID(txns) : txns
   }
   
+  async getNanoUnzapTxns(   
+    sender: string,
+    assetId: number, 
+    assetAmount: number,
+    lpTokenAmount: number,
+    maximumSlippage: number,
+    doOptIn: boolean = false,
+    assignGroup: boolean = true,
+    fee: number = 2000
+    ): Promise<Transaction[]> {
+    let txns = []
+    let burnTxns = await this.getBurnTxns(sender, lpTokenAmount, false)
+    burnTxns.forEach(txn => txns.push(txn))
+    let burnQuote = await this.getBurnQuote(lpTokenAmount)
+    this.asset1Balance -= burnQuote.asset1Delta
+    this.asset2Balance -= burnQuote.asset2Delta
+    let swapQuote: BalanceDelta
+    
+    if (assetId == this.asset1Id) {
+      if (assetAmount > burnQuote.asset1Delta) {
+        // trade some asset 2 for asset 1
+        console.log('a')
+        let swapForExactAmount = assetAmount - burnQuote.asset1Delta
+        swapQuote = this.getSwapForExactQuote(this.asset1Id, swapForExactAmount)
+        let swapTxns = await this.getSwapForExactTxns(
+          sender, 
+          this.asset2Id, 
+          swapQuote.asset2Delta * (1e6 + maximumSlippage) / 1e6,
+          swapForExactAmount, 
+          doOptIn, 
+          false, 
+          3000 + swapQuote.extraComputeFee
+          )
+        swapTxns.forEach(txn => txns.push(txn))
+      } else if (assetAmount < burnQuote.asset1Delta) {
+        // trade some asset 1 for asset 2
+        console.log('b')
+        let swapExactForAmount =  burnQuote.asset1Delta - assetAmount
+        swapQuote = this.getSwapExactForQuote(this.asset1Id, swapExactForAmount)
+        let swapTxns = await this.getSwapExactForTxns(
+          sender, 
+          this.asset1Id, 
+          swapExactForAmount,
+          swapQuote.asset2Delta * (1e6 - maximumSlippage) / 1e6,
+          doOptIn,
+          false,
+          2000 + swapQuote.extraComputeFee
+          )
+        swapTxns.forEach(txn => txns.push(txn))
+      }
+    }
+    
+    if (assetId == this.asset2Id) {
+      if (assetAmount > burnQuote.asset2Delta) {
+        console.log('c')
+        // trade some asset 1 for asset 2
+        let swapForExactAmount = assetAmount - burnQuote.asset1Delta
+        swapQuote = this.getSwapForExactQuote(this.asset2Id, swapForExactAmount)
+        let swapTxns = await this.getSwapForExactTxns(
+          sender, 
+          this.asset1Id, 
+          swapQuote.asset1Delta * (1e6 + maximumSlippage) / 1e6,
+          swapForExactAmount, 
+          doOptIn, 
+          false, 
+          3000 + swapQuote.extraComputeFee
+          )
+        swapTxns.forEach(txn => txns.push(txn))
+      } else if (assetAmount < burnQuote.asset2Delta) {
+        console.log('d')
+        // trade some asset 2 for asset 1
+        let swapExactForAmount =  burnQuote.asset2Delta - assetAmount
+        swapQuote = this.getSwapExactForQuote(this.asset2Id, swapExactForAmount)
+        let swapTxns = await this.getSwapExactForTxns(
+          sender, 
+          this.asset2Id, 
+          swapExactForAmount,
+          swapQuote.asset1Delta * (1e6 - maximumSlippage) / 1e6,
+          doOptIn,
+          false,
+          2000 + swapQuote.extraComputeFee
+          )
+        swapTxns.forEach(txn => txns.push(txn))
+      }
+    }
+    await this.loadState()
+    return assignGroup ? algosdk.assignGroupID(txns) : txns
+  }
+  
   // QUOTES
 
   // pool quote

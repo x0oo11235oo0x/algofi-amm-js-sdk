@@ -2,36 +2,78 @@ const algosdk = require("algosdk")
 const algofi = require("../.")
 
 const m =
-  "close buffalo zoo track stay inspire alcohol green vintage noble load toward unusual critic boost chase usage slide govern follow soda jungle load absent save"
-const a = "XUDFHKY3JVCYBX3K35GDMJIRHPANTATBIEAV2GBT73KTKMXFAUMBD6FZFQ"
+  "demand mammal diagram lesson brain goddess wheat home cannon mesh define embrace detail fury omit sun into horse wedding ancient deny inmate judge able neutral"
+const a = "7D2WH4PUXER2RRWNYTZRPDTL6XJNOIRKIWU572BXAXCWNOSMFN6QIBPSZA"
 const sk = algosdk.mnemonicToSecretKey(m).sk
 
 async function test() {
   let client = new algosdk.Algodv2(
-    "088368839ac7de2e23fca5c15182ccd7a7df4bc5a777c1ed157a83f5382698ad",
-    "https://tn1.algofi.org/",
+    "",
+    "https://algoexplorerapi.io",
     ""
   )
 
   console.log("TESTING")
-  let a_client = new algofi.AlgofiAMMClient(client, algofi.Network.TESTNET)
-  /*
-  let asset1_id = 1
-  let asset2_id = 5146723
-  let pool = await a_client.getPool(algofi.PoolType.CONSTANT_PRODUCT_30BP_FEE, asset1_id, asset2_id)
+  let a_client = new algofi.AlgofiAMMClient(client, algofi.Network.MAINNET)
+  
+  let asset1_id = 31566704
+  let asset2_id = 465865291
+  let pool = await a_client.getPool(algofi.PoolType.NANOSWAP, asset2_id, asset1_id)
   console.log(pool.poolType)
   console.log(pool.asset1Id)
   console.log(pool.asset2Id)
-  console.log(pool.logicSig.address())
+  //console.log(pool.logicSig.address())
   console.log("pool=", pool)
   console.log("pool.asset1Balance=", pool.asset1Balance)
   console.log("pool.asset2Balance=", pool.asset2Balance)
-  console.log("pool.getSwapExactForQuote(1,1e5)=", pool.getSwapExactForQuote(1, 1e5))
-  console.log("pool.getSwapExactForQuote(1,1e6)=", pool.getSwapExactForQuote(1, 1e6))
-  console.log("pool.getSwapExactForQuote(1,1e7)=", pool.getSwapExactForQuote(1, 1e7))
-  console.log("pool.getSwapExactForQuote(1,1e8)=", pool.getSwapExactForQuote(1, 1e8))
-  */
-
+  // console.log("pool.getSwapExactForQuote(1,503556)=", pool.getSwapForExactQuote(465865291, 244131))
+  // console.log("pool.getSwapExactForQuote(1,503556)=", pool.getSwapForExactQuote(31566704, 121522))
+  // let amt = 1395705
+  //console.log(pool.binarySearch(-9, 4, function (x) {return x}))
+  console.log(pool.getSwapExactForQuote(this.asset2Id, 100))
+  console.log(pool.asset1Balance/pool.asset2Balance)
+  let r = pool.asset1Balance / pool.asset2Balance
+  let s = 100000
+  let x = Math.floor(r * s / (1 + r))
+  let y = s - x
+  
+  let q = await pool.getNanoUnzapQuote(asset2_id, 5e5, 1e6)
+  let p = await pool.getMaxNanoUnzapQuote(asset1_id, 1e6)
+  console.log(q)
+  console.log(p)
+  let txns = await pool.getNanoUnzapTxns(a, asset1_id, 5e5, 1e6, 10000)
+  
+  // let q1 = await pool.getMaxNanoUnzapQuote(asset1_id, 2e6)
+  // let q2 = await pool.getMaxNanoUnzapQuote(asset2_id, 2e6)
+  // console.log(q1)
+  // console.log(q2)
+  // console.log(x, y)
+  // console.log(pool.asset1Balance / pool.asset2Balance)
+  // console.log(eval(Math.round(100000*1e6 * r).toFixed()), 100000*1e6)
+  // let q = await pool.getNanoZapQuote(175779 * 1e6, 0) // r = A/B B=rA
+  // let p = pool.getPoolQuote(asset1_id, eval(Math.round(100000*1e6 * r).toFixed()), eval(Math.round(100000*1e6 * r).toFixed()), 100000*1e6)
+  // console.log('aaa')
+  // console.log(q)
+  // console.log(p)
+  // console.log(q.lpDelta/p.lpDelta)
+  
+  // let txns = await pool.getNanoZapTransactions(a, s, 0, 10000, false, false, true)
+  // let stxns = txns.map(x => algosdk.signTransaction(x, sk).blob)
+  // let response = await client.sendRawTransaction(stxns).do()
+  //console.log(response)
+  // console.log(pool.asset1Balance - q.asset1Delta)
+  // console.log(pool.asset2Balance - q.asset2Delta)
+  // // console.log("pool.getSwapExactForQuote(1,1e6)=", pool.getSwapExactForQuote(77279127, 1e6))
+  // // console.log("pool.getSwapExactForQuote(1,1e7)=", pool.getSwapExactForQuote(77279127, 1e7))
+  // // console.log("pool.getSwapExactForQuote(1,1e8)=", pool.getSwapExactForQuote(77279127, 1e8))
+  // let q = pool.getPoolQuote(31566704, 1000000)
+  // let txns = await pool.getPoolTxns(a, asset2_id,  1394650, 1396765, false, true, 5000)
+  // let stxns = txns.map(x => algosdk.signTransaction(x, sk).blob)
+  // let response = await client.sendRawTransaction(stxns).do()
+  // console.log(response)
+  
+  
+  /*
   const zapInAsset = 1 // ALGO
   const zapOutAsset = 51436723 // goBTC
   const pool = await a_client.getPool(algofi.PoolType.CONSTANT_PRODUCT_30BP_FEE, zapInAsset, zapOutAsset)
@@ -46,6 +88,7 @@ async function test() {
   //console.log("txns=", txns)
   const seed =
     "execute teach purpose spy random banner sail rather ozone lumber popular cattle cliff tumble title bicycle erode faculty bonus drum duck elder mansion ability essay"
+  */
   //console.log("txns=", txns)
 
   //    let asset = await a_client.getAsset(asset1_id)
