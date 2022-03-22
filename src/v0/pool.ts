@@ -746,4 +746,60 @@ export default class Pool {
     await this.loadState()
     return poolQuote
   }
+  
+  async getNanoUnzapQuote(assetId : number, assetAmount : number, lpTokenAmount : number) {
+    let burnQuote = await this.getBurnQuote(lpTokenAmount)
+    
+    this.asset1Balance -= burnQuote.asset1Delta
+    this.asset2Balance -= burnQuote.asset2Delta
+    
+    let swapQuote: BalanceDelta
+    if (assetId == this.asset1Id) {
+      if (assetAmount > burnQuote.asset1Delta) {
+        // trade some asset 2 for asset 1
+        let swapForExactAmount = assetAmount - burnQuote.asset1Delta
+        swapQuote = this.getSwapForExactQuote(this.asset1Id, swapForExactAmount)
+      } else if (assetAmount < burnQuote.asset1Delta) {
+        // trade some asset 1 for asset 2
+        let swapExactForAmount =  burnQuote.asset1Delta - assetAmount
+        swapQuote = this.getSwapExactForQuote(this.asset1Id, swapExactForAmount)
+      }
+    }
+    if (assetId == this.asset2Id) {
+      if (assetAmount > burnQuote.asset2Delta) {
+        // trade some asset 1 for asset 2
+        let swapForExactAmount = assetAmount - burnQuote.asset1Delta
+        swapQuote = this.getSwapForExactQuote(this.asset2Id, swapForExactAmount)
+      } else if (assetAmount < burnQuote.asset2Delta) {
+        // trade some asset 2 for asset 1
+        let swapExactForAmount =  burnQuote.asset2Delta - assetAmount
+        swapQuote = this.getSwapExactForQuote(this.asset2Id, swapExactForAmount)
+      }
+    }
+    
+    burnQuote.asset1Delta += swapQuote.asset1Delta
+    burnQuote.asset2Delta += swapQuote.asset2Delta
+    await this.loadState()
+    return burnQuote
+  }
+  
+  async getMaxNanoUnzapQuote(assetId : number, lpTokenAmount : number) {
+    let burnQuote = await this.getBurnQuote(lpTokenAmount)
+    
+    this.asset1Balance -= burnQuote.asset1Delta
+    this.asset2Balance -= burnQuote.asset2Delta
+    
+    let swapQuote: BalanceDelta
+    if (assetId == this.asset1Id) {
+      swapQuote = this.getSwapExactForQuote(this.asset2Id, burnQuote.asset2Delta)
+    } else {
+      swapQuote = this.getSwapExactForQuote(this.asset1Id, burnQuote.asset1Delta)
+    }
+
+    burnQuote.asset1Delta += swapQuote.asset1Delta
+    burnQuote.asset2Delta += swapQuote.asset2Delta
+    await this.loadState()
+    return burnQuote
+  }
+  
 }
