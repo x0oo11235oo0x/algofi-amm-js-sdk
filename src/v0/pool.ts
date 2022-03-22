@@ -472,7 +472,7 @@ export default class Pool {
     assignGroup: boolean = true,
     maximumSlippageLP: number = 10000
   ): Promise<Transaction[]> {
-    let tradeQuote: BalanceDelta
+    let tradeQuote = new BalanceDelta(this, 0,0,0,0)
     let txns = []
     
     
@@ -490,17 +490,19 @@ export default class Pool {
         (this.asset2Balance + asset2InputAmount) * dx
       }.bind(this)
       let tradeAmt = this.binarySearch(0, asset1InputAmount, objective)
-      tradeQuote = this.getSwapExactForQuote(this.asset1Id, tradeAmt)
       
-      const swapExactForTxns = await this.getSwapExactForTxns(
-        sender,
-        this.asset1Id,
-        -tradeQuote.asset1Delta,
-        Math.round(tradeQuote.asset2Delta * (1e6 - maximumSlippageSwap) / 1e6),
-        doOptIn,
-        false,
-        2000 + (tradeQuote?.extraComputeFee || 0))
-      swapExactForTxns.forEach(txn => txns.push(txn))
+      if (tradeAmt > 1) {
+        tradeQuote = this.getSwapExactForQuote(this.asset1Id, tradeAmt)
+        const swapExactForTxns = await this.getSwapExactForTxns(
+          sender,
+          this.asset1Id,
+          -tradeQuote.asset1Delta,
+          Math.round(tradeQuote.asset2Delta * (1e6 - maximumSlippageSwap) / 1e6),
+          doOptIn,
+          false,
+          2000 + (tradeQuote?.extraComputeFee || 0))
+        swapExactForTxns.forEach(txn => txns.push(txn))
+      }
     }
     
     if (asset1InputAmount === 0 || asset1InputAmount / asset2InputAmount < this.asset1Balance / this.asset2Balance) {
@@ -512,16 +514,18 @@ export default class Pool {
         (this.asset2Balance + asset2InputAmount) * dx
         }.bind(this)
       let tradeAmt = this.binarySearch(0, asset2InputAmount, objective)
-      tradeQuote = this.getSwapExactForQuote(this.asset2Id, tradeAmt)
-      const swapExactForTxns = await this.getSwapExactForTxns(
-        sender,
-        this.asset2Id,
-        -tradeQuote.asset2Delta,
-        Math.round(tradeQuote.asset1Delta * (1e6 - maximumSlippageSwap) / 1e6),
-        doOptIn,
-        false,
-        2000 + (tradeQuote?.extraComputeFee || 0))
-      swapExactForTxns.forEach(txn => txns.push(txn))
+      if (tradeAmt > 1) { 
+        tradeQuote = this.getSwapExactForQuote(this.asset2Id, tradeAmt)
+        const swapExactForTxns = await this.getSwapExactForTxns(
+          sender,
+          this.asset2Id,
+          -tradeQuote.asset2Delta,
+          Math.round(tradeQuote.asset1Delta * (1e6 - maximumSlippageSwap) / 1e6),
+          doOptIn,
+          false,
+          2000 + (tradeQuote?.extraComputeFee || 0))
+        swapExactForTxns.forEach(txn => txns.push(txn))
+      }
     }
     
     this.asset1Balance -= tradeQuote.asset1Delta
@@ -529,7 +533,7 @@ export default class Pool {
     
     let whatIfDelta1 = asset1InputAmount + tradeQuote.asset1Delta
     let whatIfDelta2 = asset2InputAmount + tradeQuote.asset2Delta
-    let poolQuote = this.getPoolQuote(this.asset1Id, whatIfDelta1, whatIfDelta2)
+    let poolQuote = this.getPoolQuote(this.asset1Id, whatIfDelta1, whatIfDelta1, whatIfDelta2)
     let poolTxns = await this.getPoolTxns(sender, whatIfDelta1, whatIfDelta2, maximumSlippageLP, doOptInLP, false, 3000 + (poolQuote?.extraComputeFee || 0))
     poolTxns.forEach(txn => txns.push(txn))
     
@@ -575,7 +579,7 @@ export default class Pool {
         (asset2PooledAmount * (this.asset1Balance + whatIfDelta1)) / (this.asset2Balance + whatIfDelta2)
       )
     }
-
+    
     if (this.poolType === PoolType.NANOSWAP) {
       let [D0, numIterD0] = getD([this.asset1Balance, this.asset2Balance], this.getAmplificationFactor())
       let [D1, numIterD1] = getD([asset1PooledAmount + this.asset1Balance, asset2PooledAmount + this.asset2Balance], this.getAmplificationFactor())
@@ -610,10 +614,6 @@ export default class Pool {
       throw new Error("Error: pool is empty")
     }
     
-    if (swapInAmount === 0) {
-      return new BalanceDelta(this, 0, 0, 0, 0)
-    }
-
     let swapInAmountLessFees = swapInAmount - (Math.floor(swapInAmount * this.swapFee) + 1)
     let swapOutAmount = 0
     let numIter = 0
@@ -711,9 +711,8 @@ export default class Pool {
     if (asset1InputAmount === 0 && asset2InputAmount === 0) {
       return this.getPoolQuote(this.asset1Id, 0,0)
     }
-    let tradeQuote: BalanceDelta
-    let txns = []
-    
+    let tradeQuote = new BalanceDelta(this, 0, 0, 0, 0)
+    let tradeAmt = 0
     if (asset2InputAmount === 0 || asset1InputAmount / asset2InputAmount > this.asset1Balance / this.asset2Balance) {
       let objective = function (dx) {
         let dy =  this.getSwapExactForQuote(this.asset1Id, dx).asset2Delta
@@ -722,8 +721,8 @@ export default class Pool {
         (this.asset1Balance + asset1InputAmount) * dy +
         (this.asset2Balance + asset2InputAmount) * dx
       }.bind(this)
-      let tradeAmt = this.binarySearch(0, asset1InputAmount, objective)
-      tradeQuote = this.getSwapExactForQuote(this.asset1Id, tradeAmt)
+      tradeAmt = this.binarySearch(0, asset1InputAmount, objective)
+      if (tradeAmt > 1) tradeQuote = this.getSwapExactForQuote(this.asset1Id, tradeAmt)
     }
     if (asset1InputAmount === 0 || asset1InputAmount / asset2InputAmount < this.asset1Balance / this.asset2Balance) {
       let objective = function (dy) {
@@ -733,8 +732,8 @@ export default class Pool {
         (this.asset1Balance + asset1InputAmount) * dy +
         (this.asset2Balance + asset2InputAmount) * dx
         }.bind(this)
-      let tradeAmt = this.binarySearch(0, asset2InputAmount, objective)
-      tradeQuote = this.getSwapExactForQuote(this.asset2Id, tradeAmt)
+      tradeAmt = this.binarySearch(0, asset2InputAmount, objective)
+      if (tradeAmt > 1) tradeQuote = this.getSwapExactForQuote(this.asset2Id, tradeAmt)
     }
     
     this.asset1Balance -= tradeQuote.asset1Delta
@@ -742,7 +741,7 @@ export default class Pool {
     
     let whatIfDelta1 = asset1InputAmount + tradeQuote.asset1Delta
     let whatIfDelta2 = asset2InputAmount + tradeQuote.asset2Delta
-    let poolQuote = this.getPoolQuote(this.asset1Id, whatIfDelta1, whatIfDelta2)
+    let poolQuote = this.getPoolQuote(this.asset1Id, whatIfDelta1, whatIfDelta1, whatIfDelta2)
     // reset state to what it's supposed to be
     await this.loadState()
     return poolQuote
