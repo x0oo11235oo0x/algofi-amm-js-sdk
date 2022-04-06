@@ -568,7 +568,7 @@ export default class Pool {
         let swapTxns = await this.getSwapForExactTxns(
           sender, 
           this.asset2Id, 
-          eval((-swapQuote.asset2Delta * (1e6 + maximumSlippage) / 1e6).toFixed()),
+          Math.min(burnQuote.asset2Delta, eval((-swapQuote.asset2Delta * (1e6 + maximumSlippage) / 1e6).toFixed())),
           swapForExactAmount, 
           doOptIn, 
           false, 
@@ -600,7 +600,7 @@ export default class Pool {
         let swapTxns = await this.getSwapForExactTxns(
           sender, 
           this.asset1Id, 
-          eval((-swapQuote.asset1Delta * (1e6 + maximumSlippage) / 1e6).toFixed()),
+          Math.min(burnQuote.asset1Delta, eval((-swapQuote.asset1Delta * (1e6 + maximumSlippage) / 1e6).toFixed())),
           swapForExactAmount, 
           doOptIn, 
           false, 
