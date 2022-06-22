@@ -23,7 +23,7 @@
     "prepublishOnly": "tsdx build"
   },
   "dependencies": {
-    "algosdk": "1.13.1",
+    "algosdk": "1.17.0",
     "typescript": "^3.9.10"
   },
   "devDependencies": {
