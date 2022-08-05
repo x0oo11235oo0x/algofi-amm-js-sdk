@@ -1,4 +1,7 @@
 # algofi-amm-js-sdk
+
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/Algofiorg/algofi-amm-js-sdk/tree/main.svg?style=shield)](https://dl.circleci.com/status-badge/redirect/gh/Algofiorg/algofi-amm-js-sdk/tree/main)
+
 Official Javascript SDK for the Algofi AMM + NanoSwap protocols
 
 ## Documentation
