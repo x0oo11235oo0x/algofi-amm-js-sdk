@@ -1,5 +1,5 @@
 # algofi-amm-js-sdk
-Official Javscript SDK for the Algofi AMM + NanoSwap protocols
+Official Javascript SDK for the Algofi AMM + NanoSwap protocols
 
 ## Documentation
 https://algofiorg.github.io/algofi-amm-js-sdk/
